@@ -5,6 +5,8 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { TooltipProvider } from '#/components/ui/tooltip'
+import { CaptchaDialog } from '#/components/captcha-dialog'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
@@ -27,13 +29,18 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'bili-sign · B 站账号所有权验证',
       },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'icon',
+        href: '/bili-sign.svg',
+        type: 'image/svg+xml',
       },
     ],
   }),
@@ -42,12 +49,15 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <head>
         <HeadContent />
       </head>
       <body>
-        {children}
+        <TooltipProvider>
+          {children}
+          <CaptchaDialog />
+        </TooltipProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

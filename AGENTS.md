@@ -1,3 +1,5 @@
+打开dev页面时，仅允许执行`vpr dev`；若端口被占用，则不再重复打开；一定要检查项目是否已经打开过dev服务器。
+
 <!-- intent-skills:start -->
 
 # TanStack Intent - before editing files, run the matching guidance command.
@@ -107,6 +109,10 @@ tanstackIntent:
 This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
 
 Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
+
+## Built-in Commands vs Scripts
+
+`vp <name>` runs a built-in command. `vp run <name>` runs a `package.json` script or a `vite.config.ts` task. Scripts cannot overwrite built-ins, so `vp dev` and `vp run dev` may do different things. Check `package.json` and `vite.config.ts` first, and run `vp run <name>` when the project defines a script or task with that name.
 
 ## Review Checklist
 

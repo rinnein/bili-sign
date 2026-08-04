@@ -10,7 +10,19 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SplatRouteImport } from './routes/$'
+import { Route as AbuseRouteImport } from './routes/abuse'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DocsRouteImport } from './routes/docs'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as ApiBiliInfoRouteImport } from './routes/api/bili-info'
+import { Route as ApiResolveB23RouteImport } from './routes/api/resolve-b23'
+import { Route as ApiTurnstileRouteImport } from './routes/api/turnstile'
+import { Route as DeviceConfirmRouteImport } from './routes/device/confirm'
+import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
+import { Route as Oauth2SplatRouteImport } from './routes/oauth2/$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,9 +30,69 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AbuseRoute = AbuseRouteImport.update({
+  id: '/abuse',
+  path: '/abuse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsRoute = DocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyRoute = VerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBiliInfoRoute = ApiBiliInfoRouteImport.update({
+  id: '/api/bili-info',
+  path: '/api/bili-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiResolveB23Route = ApiResolveB23RouteImport.update({
+  id: '/api/resolve-b23',
+  path: '/api/resolve-b23',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTurnstileRoute = ApiTurnstileRouteImport.update({
+  id: '/api/turnstile',
+  path: '/api/turnstile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeviceConfirmRoute = DeviceConfirmRouteImport.update({
+  id: '/device/confirm',
+  path: '/device/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Oauth2SplatRoute = Oauth2SplatRouteImport.update({
+  id: '/oauth2/$',
+  path: '/oauth2/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
@@ -31,31 +103,125 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/abuse': typeof AbuseRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/verify': typeof VerifyRoute
+  '/api/bili-info': typeof ApiBiliInfoRoute
+  '/api/resolve-b23': typeof ApiResolveB23Route
+  '/api/turnstile': typeof ApiTurnstileRoute
+  '/device/confirm': typeof DeviceConfirmRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth2/$': typeof Oauth2SplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/abuse': typeof AbuseRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/verify': typeof VerifyRoute
+  '/api/bili-info': typeof ApiBiliInfoRoute
+  '/api/resolve-b23': typeof ApiResolveB23Route
+  '/api/turnstile': typeof ApiTurnstileRoute
+  '/device/confirm': typeof DeviceConfirmRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth2/$': typeof Oauth2SplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
+  '/abuse': typeof AbuseRoute
+  '/dashboard': typeof DashboardRoute
+  '/docs': typeof DocsRoute
+  '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
+  '/verify': typeof VerifyRoute
+  '/api/bili-info': typeof ApiBiliInfoRoute
+  '/api/resolve-b23': typeof ApiResolveB23Route
+  '/api/turnstile': typeof ApiTurnstileRoute
+  '/device/confirm': typeof DeviceConfirmRoute
+  '/oauth/consent': typeof OauthConsentRoute
+  '/oauth2/$': typeof Oauth2SplatRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mcp' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/$'
+    | '/abuse'
+    | '/dashboard'
+    | '/docs'
+    | '/login'
+    | '/mcp'
+    | '/verify'
+    | '/api/bili-info'
+    | '/api/resolve-b23'
+    | '/api/turnstile'
+    | '/device/confirm'
+    | '/oauth/consent'
+    | '/oauth2/$'
+    | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mcp' | '/api/auth/$'
-  id: '__root__' | '/' | '/mcp' | '/api/auth/$'
+  to:
+    | '/'
+    | '/$'
+    | '/abuse'
+    | '/dashboard'
+    | '/docs'
+    | '/login'
+    | '/mcp'
+    | '/verify'
+    | '/api/bili-info'
+    | '/api/resolve-b23'
+    | '/api/turnstile'
+    | '/device/confirm'
+    | '/oauth/consent'
+    | '/oauth2/$'
+    | '/api/auth/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/$'
+    | '/abuse'
+    | '/dashboard'
+    | '/docs'
+    | '/login'
+    | '/mcp'
+    | '/verify'
+    | '/api/bili-info'
+    | '/api/resolve-b23'
+    | '/api/turnstile'
+    | '/device/confirm'
+    | '/oauth/consent'
+    | '/oauth2/$'
+    | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
+  AbuseRoute: typeof AbuseRoute
+  DashboardRoute: typeof DashboardRoute
+  DocsRoute: typeof DocsRoute
+  LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
+  VerifyRoute: typeof VerifyRoute
+  ApiBiliInfoRoute: typeof ApiBiliInfoRoute
+  ApiResolveB23Route: typeof ApiResolveB23Route
+  ApiTurnstileRoute: typeof ApiTurnstileRoute
+  DeviceConfirmRoute: typeof DeviceConfirmRoute
+  OauthConsentRoute: typeof OauthConsentRoute
+  Oauth2SplatRoute: typeof Oauth2SplatRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -68,11 +234,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/abuse': {
+      id: '/abuse'
+      path: '/abuse'
+      fullPath: '/abuse'
+      preLoaderRoute: typeof AbuseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs': {
+      id: '/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify': {
+      id: '/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/bili-info': {
+      id: '/api/bili-info'
+      path: '/api/bili-info'
+      fullPath: '/api/bili-info'
+      preLoaderRoute: typeof ApiBiliInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/resolve-b23': {
+      id: '/api/resolve-b23'
+      path: '/api/resolve-b23'
+      fullPath: '/api/resolve-b23'
+      preLoaderRoute: typeof ApiResolveB23RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/turnstile': {
+      id: '/api/turnstile'
+      path: '/api/turnstile'
+      fullPath: '/api/turnstile'
+      preLoaderRoute: typeof ApiTurnstileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/device/confirm': {
+      id: '/device/confirm'
+      path: '/device/confirm'
+      fullPath: '/device/confirm'
+      preLoaderRoute: typeof DeviceConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth2/$': {
+      id: '/oauth2/$'
+      path: '/oauth2/$'
+      fullPath: '/oauth2/$'
+      preLoaderRoute: typeof Oauth2SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -87,7 +337,19 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
+  AbuseRoute: AbuseRoute,
+  DashboardRoute: DashboardRoute,
+  DocsRoute: DocsRoute,
+  LoginRoute: LoginRoute,
   McpRoute: McpRoute,
+  VerifyRoute: VerifyRoute,
+  ApiBiliInfoRoute: ApiBiliInfoRoute,
+  ApiResolveB23Route: ApiResolveB23Route,
+  ApiTurnstileRoute: ApiTurnstileRoute,
+  DeviceConfirmRoute: DeviceConfirmRoute,
+  OauthConsentRoute: OauthConsentRoute,
+  Oauth2SplatRoute: Oauth2SplatRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport
