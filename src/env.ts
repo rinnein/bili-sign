@@ -4,7 +4,6 @@ import { z } from 'zod'
 export const env = createEnv({
   server: {
     BETTER_AUTH_URL: z.url().optional(),
-    SERVER_URL: z.url().optional(),
     DATABASE_URL: z.url(),
     TURNSTILE_SECRET: z.string().min(1).optional(),
   },
@@ -16,8 +15,7 @@ export const env = createEnv({
   clientPrefix: 'VITE_',
 
   client: {
-    VITE_APP_TITLE: z.string().min(1).optional(),
-    VITE_TURNSTILE_SITE_KEY: z.string(),
+    VITE_TURNSTILE_SITE_KEY: z.string().optional(),
   },
 
   /**

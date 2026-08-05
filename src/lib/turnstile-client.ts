@@ -1,7 +1,9 @@
+import { env } from '#/env.ts'
+
 export const turnstileAction = 'turnstile-spin-v2'
-export const turnstileEnabled = import.meta.env.PROD
-export const turnstileSiteKey =
-  import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAEFX2jzBJ6beUpEx'
+export const turnstileSiteKey = env.VITE_TURNSTILE_SITE_KEY
+export const turnstileEnabled =
+  import.meta.env.PROD && env.VITE_TURNSTILE_SITE_KEY
 
 export async function verifyTurnstileToken(token: string) {
   if (!turnstileEnabled) return
