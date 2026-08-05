@@ -6,8 +6,8 @@ onlyBuiltDependencies:
   - esbuild
   - lightningcss
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.7
-  vite-plus: 0.2.7
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.8
+  vite-plus: 0.2.8
 overrides:
   vite: 'catalog:'
 peerDependencyRules:
@@ -17,3 +17,21 @@ peerDependencyRules:
     vite: '*'
 minimumReleaseAgeExclude:
   - better-auth-bili-basic
+  - '@better-auth/core@1.6.26'
+  - '@better-auth/drizzle-adapter@1.6.26'
+  - '@better-auth/kysely-adapter@1.6.26'
+  - '@better-auth/memory-adapter@1.6.26'
+  - '@better-auth/mongo-adapter@1.6.26'
+  - '@better-auth/prisma-adapter@1.6.26'
+  - '@better-auth/telemetry@1.6.26'
+  - better-auth@1.6.26
+  - '@voidzero-dev/vite-plus-core@0.2.8'
+  - '@voidzero-dev/vite-plus-darwin-arm64@0.2.8'
+  - '@voidzero-dev/vite-plus-darwin-x64@0.2.8'
+  - '@voidzero-dev/vite-plus-linux-arm64-gnu@0.2.8'
+  - '@voidzero-dev/vite-plus-linux-arm64-musl@0.2.8'
+  - '@voidzero-dev/vite-plus-linux-x64-gnu@0.2.8'
+  - '@voidzero-dev/vite-plus-linux-x64-musl@0.2.8'
+  - '@voidzero-dev/vite-plus-win32-arm64-msvc@0.2.8'
+  - '@voidzero-dev/vite-plus-win32-x64-msvc@0.2.8'
+  - vite-plus@0.2.8

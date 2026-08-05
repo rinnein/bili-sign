@@ -256,6 +256,9 @@ function AccountMenu({ name, image }: { name: string; image?: string | null }) {
             <SessionSwitcher currentUserId={session?.user.id} />
           </>
         )}
+        <DropdownMenuItem asChild>
+          <Link to="/login">登录其它账户</Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void authClient.signOut()}>
           退出登录
         </DropdownMenuItem>

@@ -38,11 +38,11 @@
     "@tanstack/react-table": "latest",
     "@tanstack/router-core": "^1.171.15",
     "@tanstack/store": "latest",
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.20.3",
     "@types/qrcode": "^1.5.6",
     "@zxing/browser": "^0.2.1",
-    "better-auth": "^1.6.25",
-    "better-auth-bili-basic": "^0.1.1",
+    "better-auth": "^1.6.26",
+    "better-auth-bili-basic": "^0.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "input-otp": "^1.4.2",
@@ -78,7 +78,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "11.18.0",
+      "version": "11.20.0",
       "onFail": "download"
     }
   }

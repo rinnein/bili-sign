@@ -17,14 +17,12 @@ import {
   startVerificationCooldown,
 } from '#/lib/verification-cooldown'
 
-type SessionData = NonNullable<ReturnType<typeof authClient.useSession>['data']>
-
 export function useBiliVerification({
-  session,
   refetch,
+  onSessionSwitched,
 }: {
-  session: SessionData | null | undefined
   refetch: () => Promise<unknown>
+  onSessionSwitched?: () => Promise<void> | void
 }) {
   const [mid, setMid] = useState(() => {
     const cache = readVerificationCache()
@@ -37,7 +35,6 @@ export function useBiliVerification({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [signInFallback, setSignInFallback] = useState(false)
   const [confirmCooldownRemaining, setConfirmCooldownRemaining] = useState(() =>
     getVerificationCooldownRemaining(),
   )
@@ -74,7 +71,6 @@ export function useBiliVerification({
     setMid(cache.mid || readLastMid())
     setChallenge(cachedChallenge)
     setVerificationCompleted(cache.completed)
-    setSignInFallback(cache.signInFallback)
     if (cache.challenge && !cachedChallenge) {
       writeVerificationCache({ challenge: null })
     }
@@ -92,12 +88,15 @@ export function useBiliVerification({
     try {
       const normalized = await resolveMidInput(mid)
       const targetMid = normalized.mid
+      if (await switchToMatchingSession(targetMid)) {
+        await onSessionSwitched?.()
+        return true
+      }
       const cached = readVerificationCache()
       const cachedChallenge =
         cached?.mid === targetMid && isChallengeUsable(cached.challenge)
           ? cached.challenge
           : null
-      if (targetMid !== cached?.mid) setSignInFallback(false)
       setMid(targetMid)
       const result = await getBiliInfo(targetMid)
       const reusableChallenge = isChallengeUsable(cachedChallenge)
@@ -113,7 +112,7 @@ export function useBiliVerification({
         mid: targetMid,
         challenge: reusableChallenge ? undefined : null,
         completed: false,
-        signInFallback: targetMid === cached?.mid ? undefined : false,
+        signInFallback: false,
       })
       setChallenge(reusableChallenge ? cachedChallenge : null)
       setVerificationCompleted(false)
@@ -141,6 +140,45 @@ export function useBiliVerification({
     } finally {
       setBusy(false)
     }
+  }
+
+  async function switchToMatchingSession(targetMid: string) {
+    try {
+      const sessionsResult = await authClient.multiSession.listDeviceSessions()
+      if (sessionsResult.error) return false
+
+      for (const deviceSession of sessionsResult.data) {
+        const accountsResponse = await authFetch('/api/auth/list-accounts', {
+          headers: {
+            Authorization: `Bearer ${deviceSession.session.token}`,
+          },
+          credentials: 'include',
+        })
+        if (!accountsResponse.ok) continue
+
+        const accounts = (await accountsResponse.json()) as unknown
+        const matched =
+          Array.isArray(accounts) &&
+          accounts.some((account) => {
+            if (!account || typeof account !== 'object') return false
+            const value = account as Record<string, unknown>
+            return (
+              value.providerId === 'bili-basic' && value.accountId === targetMid
+            )
+          })
+        if (!matched) continue
+
+        const switched = await authClient.multiSession.setActive({
+          sessionToken: deviceSession.session.token,
+        })
+        if (switched.error) return false
+        await refetch()
+        return true
+      }
+    } catch {
+      return false
+    }
+    return false
   }
 
   async function confirmVerification() {
@@ -198,44 +236,24 @@ export function useBiliVerification({
 
   async function completeVerification() {
     if (!challenge || !mid) return false
-    const result = session?.user
-      ? await authClient.biliBasic.link({
-          mid,
-          identifier: challenge.identifier,
-        })
-      : signInFallback
-        ? await authClient.signIn.biliBasic({
-            mid,
-            identifier: challenge.identifier,
-          })
-        : await authClient.signUp.biliBasic({
-            mid,
-            identifier: challenge.identifier,
-          })
+    const result = await authClient.signIn.biliBasic({
+      mid,
+      identifier: challenge.identifier,
+    })
 
-    if (
-      !session?.user &&
-      !signInFallback &&
-      result.error?.message?.toLowerCase().includes('already bound')
-    ) {
-      setSignInFallback(true)
-      writeVerificationCache({ signInFallback: true })
-      throw new Error('该 B 站账号已绑定，请等待冷却后重新验证登录。')
-    }
     if (result.error) {
       throw new Error(result.error.message ?? '验证失败，请检查签名后重试')
     }
 
     await refetch()
     setChallenge(null)
-    setSignInFallback(false)
     writeVerificationCache({
       challenge: null,
       completed: true,
       signInFallback: false,
     })
     setVerificationCompleted(true)
-    setNotice('验证成功。请将下面缓存的原签名恢复到 B 站账号。')
+    setNotice('验证已完成。请先恢复 B 站原签名，再点击上方的“我已恢复”。')
     await continueOAuth()
     const returnTo = new URLSearchParams(window.location.search).get(
       'return_to',
@@ -277,7 +295,6 @@ export function useBiliVerification({
     setVerificationCompleted(false)
     setOriginalSign('')
     setMid('')
-    setSignInFallback(false)
     setError('')
     setNotice('')
   }

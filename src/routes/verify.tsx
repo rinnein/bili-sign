@@ -6,7 +6,7 @@ import {
   RotateCcwIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
 import { BiliProfile } from '#/components/bili-profile'
@@ -43,8 +43,12 @@ import {
 export const Route = createFileRoute('/verify')({ component: Verify })
 
 function Verify() {
-  const { data: session, isPending, refetch } = authClient.useSession()
-  const flow = useBiliVerification({ session, refetch })
+  const { isPending, refetch } = authClient.useSession()
+  const navigate = useNavigate()
+  const flow = useBiliVerification({
+    refetch,
+    onSessionSwitched: () => navigate({ to: '/dashboard' }),
+  })
   const pluginState = usePluginBridge()
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [safetyOpen, setSafetyOpen] = useState(false)
@@ -275,7 +279,10 @@ function Verify() {
           <RestoreCard
             sign={flow.originalSign}
             mid={flow.info.mid}
-            onRestore={flow.clearCache}
+            onRestore={() => {
+              flow.clearCache()
+              void navigate({ to: '/dashboard' })
+            }}
           />
         )}
         {flow.error && (
