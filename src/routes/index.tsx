@@ -27,6 +27,9 @@ function Home() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">
+            <Link to="/verify">注册</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg">
             <Link to="/docs">
               <BookOpenIcon data-icon="inline-start" />
               查看文档

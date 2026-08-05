@@ -13,16 +13,22 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as AbuseRouteImport } from './routes/abuse'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as InitRouteImport } from './routes/init'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as ApiBiliInfoRouteImport } from './routes/api/bili-info'
 import { Route as ApiResolveB23RouteImport } from './routes/api/resolve-b23'
 import { Route as ApiTurnstileRouteImport } from './routes/api/turnstile'
 import { Route as DeviceConfirmRouteImport } from './routes/device/confirm'
 import { Route as OauthConsentRouteImport } from './routes/oauth/consent'
 import { Route as Oauth2SplatRouteImport } from './routes/oauth2/$'
+import { Route as ApiAdminClientsRouteImport } from './routes/api/admin/clients'
+import { Route as ApiAdminInitRouteImport } from './routes/api/admin/init'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -45,9 +51,19 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperRoute = DeveloperRouteImport.update({
+  id: '/developer',
+  path: '/developer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InitRoute = InitRouteImport.update({
+  id: '/init',
+  path: '/init',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -63,6 +79,16 @@ const McpRoute = McpRouteImport.update({
 const VerifyRoute = VerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBiliInfoRoute = ApiBiliInfoRouteImport.update({
@@ -95,6 +121,16 @@ const Oauth2SplatRoute = Oauth2SplatRouteImport.update({
   path: '/oauth2/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminClientsRoute = ApiAdminClientsRouteImport.update({
+  id: '/api/admin/clients',
+  path: '/api/admin/clients',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminInitRoute = ApiAdminInitRouteImport.update({
+  id: '/api/admin/init',
+  path: '/api/admin/init',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -106,16 +142,22 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/abuse': typeof AbuseRoute
   '/dashboard': typeof DashboardRoute
+  '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/verify': typeof VerifyRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/bili-info': typeof ApiBiliInfoRoute
   '/api/resolve-b23': typeof ApiResolveB23Route
   '/api/turnstile': typeof ApiTurnstileRoute
   '/device/confirm': typeof DeviceConfirmRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth2/$': typeof Oauth2SplatRoute
+  '/api/admin/clients': typeof ApiAdminClientsRoute
+  '/api/admin/init': typeof ApiAdminInitRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -123,16 +165,22 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/abuse': typeof AbuseRoute
   '/dashboard': typeof DashboardRoute
+  '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/verify': typeof VerifyRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/bili-info': typeof ApiBiliInfoRoute
   '/api/resolve-b23': typeof ApiResolveB23Route
   '/api/turnstile': typeof ApiTurnstileRoute
   '/device/confirm': typeof DeviceConfirmRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth2/$': typeof Oauth2SplatRoute
+  '/api/admin/clients': typeof ApiAdminClientsRoute
+  '/api/admin/init': typeof ApiAdminInitRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -141,16 +189,22 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/abuse': typeof AbuseRoute
   '/dashboard': typeof DashboardRoute
+  '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
   '/verify': typeof VerifyRoute
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/login': typeof AdminLoginRoute
   '/api/bili-info': typeof ApiBiliInfoRoute
   '/api/resolve-b23': typeof ApiResolveB23Route
   '/api/turnstile': typeof ApiTurnstileRoute
   '/device/confirm': typeof DeviceConfirmRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/oauth2/$': typeof Oauth2SplatRoute
+  '/api/admin/clients': typeof ApiAdminClientsRoute
+  '/api/admin/init': typeof ApiAdminInitRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -160,16 +214,22 @@ export interface FileRouteTypes {
     | '/$'
     | '/abuse'
     | '/dashboard'
+    | '/developer'
     | '/docs'
+    | '/init'
     | '/login'
     | '/mcp'
     | '/verify'
+    | '/admin/dashboard'
+    | '/admin/login'
     | '/api/bili-info'
     | '/api/resolve-b23'
     | '/api/turnstile'
     | '/device/confirm'
     | '/oauth/consent'
     | '/oauth2/$'
+    | '/api/admin/clients'
+    | '/api/admin/init'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -177,16 +237,22 @@ export interface FileRouteTypes {
     | '/$'
     | '/abuse'
     | '/dashboard'
+    | '/developer'
     | '/docs'
+    | '/init'
     | '/login'
     | '/mcp'
     | '/verify'
+    | '/admin/dashboard'
+    | '/admin/login'
     | '/api/bili-info'
     | '/api/resolve-b23'
     | '/api/turnstile'
     | '/device/confirm'
     | '/oauth/consent'
     | '/oauth2/$'
+    | '/api/admin/clients'
+    | '/api/admin/init'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -194,16 +260,22 @@ export interface FileRouteTypes {
     | '/$'
     | '/abuse'
     | '/dashboard'
+    | '/developer'
     | '/docs'
+    | '/init'
     | '/login'
     | '/mcp'
     | '/verify'
+    | '/admin/dashboard'
+    | '/admin/login'
     | '/api/bili-info'
     | '/api/resolve-b23'
     | '/api/turnstile'
     | '/device/confirm'
     | '/oauth/consent'
     | '/oauth2/$'
+    | '/api/admin/clients'
+    | '/api/admin/init'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -212,16 +284,22 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AbuseRoute: typeof AbuseRoute
   DashboardRoute: typeof DashboardRoute
+  DeveloperRoute: typeof DeveloperRoute
   DocsRoute: typeof DocsRoute
+  InitRoute: typeof InitRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
   VerifyRoute: typeof VerifyRoute
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   ApiBiliInfoRoute: typeof ApiBiliInfoRoute
   ApiResolveB23Route: typeof ApiResolveB23Route
   ApiTurnstileRoute: typeof ApiTurnstileRoute
   DeviceConfirmRoute: typeof DeviceConfirmRoute
   OauthConsentRoute: typeof OauthConsentRoute
   Oauth2SplatRoute: typeof Oauth2SplatRoute
+  ApiAdminClientsRoute: typeof ApiAdminClientsRoute
+  ApiAdminInitRoute: typeof ApiAdminInitRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -255,11 +333,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer': {
+      id: '/developer'
+      path: '/developer'
+      fullPath: '/developer'
+      preLoaderRoute: typeof DeveloperRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs': {
       id: '/docs'
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/init': {
+      id: '/init'
+      path: '/init'
+      fullPath: '/init'
+      preLoaderRoute: typeof InitRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -281,6 +373,20 @@ declare module '@tanstack/react-router' {
       path: '/verify'
       fullPath: '/verify'
       preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/bili-info': {
@@ -325,6 +431,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Oauth2SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/clients': {
+      id: '/api/admin/clients'
+      path: '/api/admin/clients'
+      fullPath: '/api/admin/clients'
+      preLoaderRoute: typeof ApiAdminClientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/init': {
+      id: '/api/admin/init'
+      path: '/api/admin/init'
+      fullPath: '/api/admin/init'
+      preLoaderRoute: typeof ApiAdminInitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -340,16 +460,22 @@ const rootRouteChildren: RootRouteChildren = {
   SplatRoute: SplatRoute,
   AbuseRoute: AbuseRoute,
   DashboardRoute: DashboardRoute,
+  DeveloperRoute: DeveloperRoute,
   DocsRoute: DocsRoute,
+  InitRoute: InitRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
   VerifyRoute: VerifyRoute,
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminLoginRoute: AdminLoginRoute,
   ApiBiliInfoRoute: ApiBiliInfoRoute,
   ApiResolveB23Route: ApiResolveB23Route,
   ApiTurnstileRoute: ApiTurnstileRoute,
   DeviceConfirmRoute: DeviceConfirmRoute,
   OauthConsentRoute: OauthConsentRoute,
   Oauth2SplatRoute: Oauth2SplatRoute,
+  ApiAdminClientsRoute: ApiAdminClientsRoute,
+  ApiAdminInitRoute: ApiAdminInitRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

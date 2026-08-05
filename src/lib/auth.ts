@@ -1,9 +1,10 @@
 import { betterAuth } from 'better-auth'
+import { APIError } from 'better-auth/api'
 import { passkey } from '@better-auth/passkey'
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { biliBasic } from 'better-auth-bili-basic/server'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
-import { bearer, captcha } from 'better-auth/plugins'
+import { admin, bearer, captcha, multiSession } from 'better-auth/plugins'
 import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
 import { jwt } from 'better-auth/plugins/jwt'
 import { z } from 'zod'
@@ -15,6 +16,7 @@ import {
   DEVICE_AUTH_USER_CODE_LENGTH,
 } from '#/lib/device-auth'
 import { turnstileServerEnabled } from '#/lib/turnstile-server'
+import { adminBootstrap } from '#/lib/admin-bootstrap'
 
 export const auth = betterAuth({
   basePath: '/',
@@ -53,6 +55,9 @@ export const auth = betterAuth({
         ]
       : []),
     bearer(),
+    admin(),
+    multiSession(),
+    adminBootstrap,
     passkey(),
     deviceAuthorization({
       expiresIn: '2m',
@@ -64,7 +69,7 @@ export const auth = betterAuth({
     oauthProvider({
       scopes: ['openid', 'profile', 'bili:public'] as const,
       allowDynamicClientRegistration: true,
-      allowUnauthenticatedClientRegistration: true,
+      allowUnauthenticatedClientRegistration: false,
       clientRegistrationDefaultScopes: ['openid', 'profile', 'bili:public'],
       clientRegistrationAllowedScopes: ['openid', 'profile', 'bili:public'],
       clientRegistrationClientSecretExpiration: '1 year',
@@ -94,6 +99,25 @@ export const auth = betterAuth({
           .executeTakeFirst()
 
         return account ? { bili_mid: account.accountId } : {}
+      },
+      postLogin: {
+        page: '/oauth/consent',
+        shouldRedirect: () => false,
+        consentReferenceId: ({ user }) => {
+          if (
+            typeof user.role === 'string' &&
+            user.role
+              .split(',')
+              .map((role) => role.trim())
+              .includes('admin')
+          ) {
+            throw new APIError('FORBIDDEN', {
+              error: 'access_denied',
+              error_description: '管理员账户不能授权第三方应用。',
+            })
+          }
+          return undefined
+        },
       },
     }),
     tanstackStartCookies(),

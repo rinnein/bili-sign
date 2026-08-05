@@ -132,6 +132,9 @@ export function DeviceAuthorizationCard({
         )
       }
 
+      // Keep the success state visible while removing the one-time code.
+      setUserCode('')
+      attemptedCodeRef.current = ''
       setAttemptStatus('success')
       setNotice({
         type: 'success',

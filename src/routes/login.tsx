@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from '#/components/ui/tooltip'
 import { authClient, setDeviceSessionToken } from '#/lib/auth-client'
+import { isAdminRole } from '#/lib/admin'
 import {
   DEVICE_AUTH_CLIENT_ID,
   DEVICE_AUTH_GRANT_TYPE,
@@ -54,7 +55,7 @@ function isCancelled(token: CancellationToken) {
   return token.cancelled
 }
 
-function Login() {
+export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   const {
     data: session,
     isPending: sessionPending,
@@ -66,7 +67,9 @@ function Login() {
     useState<PendingDeviceAuth | null>(null)
   const [deviceRemaining, setDeviceRemaining] = useState(0)
   const [deviceCopied, setDeviceCopied] = useState(false)
+  const [switchingAccount, setSwitchingAccount] = useState(false)
   const [error, setError] = useState('')
+  const targetRoute = adminMode ? '/admin/dashboard' : '/dashboard'
 
   useEffect(() => {
     if (!pendingDeviceAuth) return
@@ -110,8 +113,8 @@ function Login() {
           }
           stop()
           await refetch({ query: { disableCookieCache: true } })
-          if (await continueOAuthLogin()) return
-          await navigate({ to: '/dashboard' })
+          if (!adminMode && (await continueOAuthLogin())) return
+          await navigate({ to: targetRoute })
           return
         }
 
@@ -158,7 +161,7 @@ function Login() {
       if (timer) window.clearTimeout(timer)
       window.clearInterval(countdown)
     }
-  }, [navigate, pendingDeviceAuth, refetch])
+  }, [adminMode, navigate, pendingDeviceAuth, refetch, targetRoute])
 
   function continueWithBili() {
     window.location.assign(`/verify${window.location.search}`)
@@ -175,8 +178,8 @@ function Login() {
         )
       }
       await refetch()
-      if (await continueOAuthLogin()) return
-      await navigate({ to: '/dashboard' })
+      if (!adminMode && (await continueOAuthLogin())) return
+      await navigate({ to: targetRoute })
     } catch (loginError) {
       setError(
         deviceAuthErrorMessage(
@@ -254,23 +257,58 @@ function Login() {
     )
   }
 
-  if (session?.user) {
+  if (
+    session?.user &&
+    !switchingAccount &&
+    (!adminMode || isAdminRole(session.user.role))
+  ) {
+    const isAdmin = isAdminRole(session.user.role)
     return (
       <AppShell>
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-8 sm:px-6 lg:py-10">
           <Card>
             <CardHeader>
-              <CardTitle>你已经登录</CardTitle>
-              <CardDescription>当前设备已登录 bili-sign。</CardDescription>
+              <CardTitle>
+                {adminMode
+                  ? isAdmin
+                    ? '管理员已登录'
+                    : '当前账号不是管理员'
+                  : '你已经登录'}
+              </CardTitle>
+              <CardDescription>
+                {adminMode
+                  ? isAdmin
+                    ? '当前设备已登录管理员账户。'
+                    : '请退出当前账号，再使用管理员账户登录。'
+                  : '当前设备已登录 bili-sign。'}
+              </CardDescription>
             </CardHeader>
             <CardFooter>
-              <Button
-                className="ml-auto"
-                onClick={() => void navigate({ to: '/dashboard' })}
-              >
-                进入账户面板
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
+              <div className="ml-auto flex flex-wrap justify-end gap-2">
+                {isAdmin || !adminMode ? (
+                  <Button onClick={() => void navigate({ to: targetRoute })}>
+                    进入账户面板
+                    <ArrowRightIcon data-icon="inline-end" />
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => void authClient.signOut()}
+                  >
+                    退出当前账号
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSwitchingAccount(true)
+                    setError('')
+                  }}
+                >
+                  切换账户
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         </div>
@@ -284,7 +322,9 @@ function Login() {
         <Card>
           <CardHeader>
             <CardTitle>登录 bili-sign</CardTitle>
-            <CardDescription>选择一种登录方式继续。</CardDescription>
+            <CardDescription>
+              {session?.user ? '使用其它账户登录' : '选择一种登录方式继续。'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             {error ? (
@@ -293,15 +333,17 @@ function Login() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
-            <Button
-              type="button"
-              size="lg"
-              disabled={action !== null}
-              onClick={continueWithBili}
-            >
-              使用 B 站账号 注册 / 登录
-              <ArrowRightIcon data-icon="inline-end" />
-            </Button>
+            {!adminMode ? (
+              <Button
+                type="button"
+                size="lg"
+                disabled={action !== null}
+                onClick={continueWithBili}
+              >
+                使用 B 站账号 注册 / 登录
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -335,6 +377,16 @@ function Login() {
               )}
               扫码登录 / 快速连接（Device Auth）
             </Button>
+            {session?.user ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={action !== null}
+                onClick={() => setSwitchingAccount(false)}
+              >
+                返回当前账户
+              </Button>
+            ) : null}
             {pendingDeviceAuth ? (
               <div className="grid gap-5 rounded-lg border bg-muted/40 p-4 sm:grid-cols-[auto_1fr] sm:items-center">
                 <DeviceQrCode
@@ -393,4 +445,8 @@ function Login() {
       </div>
     </AppShell>
   )
+}
+
+function Login() {
+  return <LoginPage />
 }

@@ -1,7 +1,11 @@
 import { passkeyClient } from '@better-auth/passkey/client'
 import { biliBasicClient } from 'better-auth-bili-basic/client'
 import type { BetterAuthClientPlugin } from 'better-auth/client'
-import { deviceAuthorizationClient } from 'better-auth/client/plugins'
+import {
+  adminClient,
+  deviceAuthorizationClient,
+  multiSessionClient,
+} from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 
 import { captchaAwareFetch } from '#/lib/captcha-prompt'
@@ -42,5 +46,11 @@ export const authClient = createAuthClient({
   fetchOptions: {
     customFetchImpl: authFetch,
   },
-  plugins: [biliPlugin, passkeyClient(), deviceAuthorizationClient()],
+  plugins: [
+    biliPlugin,
+    passkeyClient(),
+    deviceAuthorizationClient(),
+    adminClient(),
+    multiSessionClient(),
+  ],
 })

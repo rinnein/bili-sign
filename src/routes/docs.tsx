@@ -114,6 +114,13 @@ function Docs() {
                 <code>bili:public</code>。只有明确申请 `bili:public`
                 时，userinfo 才会返回当前绑定的公开 B 站 MID。
               </p>
+              <p>
+                创建 Client 需要先登录本服务，请前往
+                <Link to="/developer" className="mx-1">
+                  开发者设置
+                </Link>
+                填写应用名称、主页 URL 和 OAuth 回调 URL。
+              </p>
               <pre className="overflow-x-auto border bg-muted p-4 text-xs leading-6">
                 <code>
                   {[

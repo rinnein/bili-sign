@@ -237,6 +237,12 @@ export function useBiliVerification({
     setVerificationCompleted(true)
     setNotice('验证成功。请将下面缓存的原签名恢复到 B 站账号。')
     await continueOAuth()
+    const returnTo = new URLSearchParams(window.location.search).get(
+      'return_to',
+    )
+    if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
+      window.location.assign(returnTo)
+    }
     return true
   }
 

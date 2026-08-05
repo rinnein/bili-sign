@@ -23,6 +23,8 @@ function OAuthConsent() {
   const { data: session, isPending } = authClient.useSession()
   const [query, setQuery] = useState('')
   const [clientId, setClientId] = useState('')
+  const [clientName, setClientName] = useState('第三方应用')
+  const [clientUri, setClientUri] = useState('')
   const [scopes, setScopes] = useState<Array<string>>([])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -31,8 +33,24 @@ function OAuthConsent() {
     const currentQuery = window.location.search.slice(1)
     const params = new URLSearchParams(currentQuery)
     setQuery(currentQuery)
-    setClientId(params.get('client_id') ?? '第三方应用')
+    const requestedClientId = params.get('client_id') ?? ''
+    setClientId(requestedClientId || '第三方应用')
     setScopes((params.get('scope') ?? '').split(' ').filter(Boolean))
+    if (requestedClientId) {
+      void authFetch(
+        `/api/auth/oauth2/public-client?client_id=${encodeURIComponent(requestedClientId)}`,
+      )
+        .then(async (response) => {
+          if (!response.ok) return
+          const client = (await response.json()) as {
+            client_name?: string
+            client_uri?: string
+          }
+          setClientName(client.client_name || '第三方应用')
+          setClientUri(client.client_uri || '')
+        })
+        .catch(() => {})
+    }
   }, [])
 
   async function submit(accept: boolean) {
@@ -102,7 +120,20 @@ function OAuthConsent() {
             <div className="grid gap-4 border-y py-5 text-sm">
               <div>
                 <p className="text-muted-foreground">客户端</p>
-                <p className="mt-1 break-all font-mono text-xs">{clientId}</p>
+                <p className="mt-1 break-all font-medium">{clientName}</p>
+                {clientUri ? (
+                  <a
+                    className="mt-1 block break-all text-xs text-muted-foreground underline"
+                    href={clientUri}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {clientUri}
+                  </a>
+                ) : null}
+                <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                  {clientId}
+                </p>
               </div>
               <div>
                 <p className="text-muted-foreground">当前账号</p>
