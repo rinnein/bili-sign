@@ -35,6 +35,16 @@ export const auth = betterAuth({
   database: { db: database, type: 'postgres' },
   appName: 'bili-sign',
   emailAndPassword: { enabled: false },
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: [
+        'cf-connecting-ip',
+        'eo-connecting-ip',
+        'x-real-ip',
+        'x-forwarded-for',
+      ],
+    },
+  },
   user: {
     deleteUser: {
       enabled: true,
