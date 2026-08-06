@@ -4,35 +4,25 @@ import {
   createAuthMiddleware,
   getSessionFromCtx,
 } from 'better-auth/api'
-import type { DBAdapter, HookEndpointContext } from 'better-auth'
+import type { HookEndpointContext } from 'better-auth'
 import { setSessionCookie } from 'better-auth/cookies'
 
 import {
+  ADMIN_BOOTSTRAP_RESERVATION,
+  ADMIN_BOOTSTRAP_TTL_MS,
   ADMIN_BOOTSTRAP_EMAIL,
-  ADMIN_ROLE,
+  findAdminUser,
+  findPendingAdminUser,
   isAdminRole,
   isPendingAdminRole,
   PENDING_ADMIN_ROLE,
 } from '#/lib/admin'
-
-type RoleUser = {
-  id: string
-  role?: unknown
-}
 
 function isUniqueConstraintViolation(error: unknown) {
   if (typeof error !== 'object' || error === null) return false
   const candidate = error as { code?: unknown; cause?: unknown }
   if (candidate.code === '23505') return true
   return isUniqueConstraintViolation(candidate.cause)
-}
-
-async function findAdminRoleUsers(adapter: DBAdapter) {
-  return adapter.findMany<RoleUser>({
-    model: 'user',
-    where: [{ field: 'role', value: ADMIN_ROLE, operator: 'contains' }],
-    select: ['id', 'role'],
-  })
 }
 
 function roleMutationRequestsAdmin(ctx: HookEndpointContext) {
@@ -67,37 +57,77 @@ export const adminBootstrap = {
       '/admin/bootstrap',
       { method: 'POST' },
       async (ctx) => {
-        const roleUsers = await findAdminRoleUsers(ctx.context.adapter)
-        if (roleUsers.some((item) => isAdminRole(item.role))) {
-          throw new APIError('FORBIDDEN', {
-            message: '管理员已经完成初始化。',
-          })
-        }
+        const { user, session } = await ctx.context.adapter.transaction(
+          async () => {
+            const adminUser = await findAdminUser(ctx.context.adapter)
+            if (adminUser) {
+              throw new APIError('FORBIDDEN', {
+                message: '管理员已经完成初始化。',
+              })
+            }
 
-        if (roleUsers.some((item) => isPendingAdminRole(item.role))) {
-          throw new APIError('CONFLICT', {
-            message: '已有管理员注册正在进行中，请在原设备继续。',
-          })
-        }
+            const pendingAdmin = await findPendingAdminUser(ctx.context.adapter)
+            const reservation =
+              await ctx.context.internalAdapter.findVerificationValue(
+                ADMIN_BOOTSTRAP_RESERVATION,
+              )
+            const now = new Date()
+            const reservationActive = reservation && reservation.expiresAt > now
 
-        let user
-        try {
-          user = await ctx.context.internalAdapter.createUser({
-            name: '管理员',
-            email: ADMIN_BOOTSTRAP_EMAIL,
-            emailVerified: false,
-            role: `user,${PENDING_ADMIN_ROLE}`,
-          })
-        } catch (error) {
-          if (isUniqueConstraintViolation(error)) {
-            throw new APIError('CONFLICT', {
-              message: '已有管理员注册正在进行中，请在原设备继续。',
-            })
-          }
-          throw error
-        }
+            if (pendingAdmin && reservationActive) {
+              throw new APIError('CONFLICT', {
+                message: '已有管理员注册正在进行中，请在原设备继续。',
+              })
+            }
 
-        const session = await ctx.context.internalAdapter.createSession(user.id)
+            if (pendingAdmin) {
+              await ctx.context.internalAdapter.deleteUser(pendingAdmin.id)
+            }
+            if (reservation) {
+              await ctx.context.internalAdapter.deleteVerificationByIdentifier(
+                ADMIN_BOOTSTRAP_RESERVATION,
+              )
+            }
+
+            let bootstrapUser
+            try {
+              bootstrapUser = await ctx.context.internalAdapter.createUser({
+                name: '管理员',
+                email: ADMIN_BOOTSTRAP_EMAIL,
+                emailVerified: false,
+                role: `user,${PENDING_ADMIN_ROLE}`,
+              })
+            } catch (error) {
+              if (!isUniqueConstraintViolation(error)) throw error
+              throw new APIError('CONFLICT', {
+                message: '已有管理员注册正在进行中，请在原设备继续。',
+              })
+            }
+
+            const reserved =
+              await ctx.context.internalAdapter.reserveVerificationValue({
+                identifier: ADMIN_BOOTSTRAP_RESERVATION,
+                value: bootstrapUser.id,
+                expiresAt: new Date(now.getTime() + ADMIN_BOOTSTRAP_TTL_MS),
+              })
+            if (!reserved) {
+              throw new APIError('CONFLICT', {
+                message: '已有管理员注册正在进行中，请稍后重试。',
+              })
+            }
+
+            const bootstrapSession =
+              await ctx.context.internalAdapter.createSession(
+                bootstrapUser.id,
+                false,
+                {
+                  expiresAt: new Date(now.getTime() + ADMIN_BOOTSTRAP_TTL_MS),
+                },
+              )
+            return { user: bootstrapUser, session: bootstrapSession }
+          },
+        )
+
         await setSessionCookie(ctx, { session, user })
         return ctx.json({ ok: true })
       },
@@ -134,8 +164,7 @@ export const adminBootstrap = {
         handler: createAuthMiddleware(async (ctx) => {
           if (!roleMutationRequestsAdmin(ctx)) return
 
-          const roleUsers = await findAdminRoleUsers(ctx.context.adapter)
-          const existingAdmin = roleUsers.find((item) => isAdminRole(item.role))
+          const existingAdmin = await findAdminUser(ctx.context.adapter)
           const targetId = roleMutationTargetId(ctx)
           if (!existingAdmin) {
             throw new APIError('FORBIDDEN', {

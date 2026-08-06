@@ -2,17 +2,15 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { auth } from '#/lib/auth'
 import {
+  ADMIN_BOOTSTRAP_RESERVATION,
+  ADMIN_BOOTSTRAP_TTL_MS,
   ADMIN_INITIALIZATION_RESERVATION,
   ADMIN_ROLE,
+  findAdminUser,
+  findPendingAdminUser,
   getUserRole,
-  isAdminRole,
   isPendingAdminRole,
 } from '#/lib/admin'
-
-type RoleUser = {
-  id: string
-  role?: unknown
-}
 
 type InitState = {
   initialized: boolean
@@ -26,19 +24,26 @@ function getSession(request: Request) {
   return auth.api.getSession({ headers: request.headers })
 }
 
-function findAdminRoleUsers(context: Awaited<typeof auth.$context>) {
-  return context.adapter.findMany<RoleUser>({
-    model: 'user',
-    where: [{ field: 'role', value: ADMIN_ROLE, operator: 'contains' }],
-    select: ['id', 'role'],
-  })
+function isPendingRegistrationRecent(createdAt: Date | string | undefined) {
+  if (!createdAt) return false
+  const timestamp =
+    createdAt instanceof Date ? createdAt.getTime() : Date.parse(createdAt)
+  return (
+    Number.isFinite(timestamp) &&
+    Date.now() - timestamp < ADMIN_BOOTSTRAP_TTL_MS
+  )
 }
 
 async function getInitState(userId?: string): Promise<InitState> {
   const context = await auth.$context
-  const roleUsers = await findAdminRoleUsers(context)
-  const initialized = roleUsers.some((user) => isAdminRole(user.role))
-  const pendingAdmin = roleUsers.some((user) => isPendingAdminRole(user.role))
+  const [adminUser, pendingAdmin] = await Promise.all([
+    findAdminUser(context.adapter),
+    findPendingAdminUser(context.adapter),
+  ])
+  const pendingRegistrationActive = Boolean(
+    pendingAdmin && isPendingRegistrationRecent(pendingAdmin.createdAt),
+  )
+  const initialized = Boolean(adminUser)
   const currentUser = userId
     ? await context.internalAdapter.findUserById(userId)
     : null
@@ -56,10 +61,11 @@ async function getInitState(userId?: string): Promise<InitState> {
     initialized,
     canInitialize:
       !initialized &&
+      pendingRegistrationActive &&
       Boolean(userId && isPendingAdminRole(getUserRole(currentUser))),
     hasSession: Boolean(userId),
     hasPasskey,
-    registrationAvailable: !initialized && !pendingAdmin,
+    registrationAvailable: !initialized && !pendingRegistrationActive,
   }
 }
 
@@ -82,9 +88,7 @@ export const Route = createFileRoute('/api/admin/init')({
         try {
           const context = await auth.$context
           const result = await context.adapter.transaction(async () => {
-            const roleUsers = await findAdminRoleUsers(context)
-
-            if (roleUsers.some((user) => isAdminRole(user.role))) {
+            if (await findAdminUser(context.adapter)) {
               return { status: 'initialized' as const }
             }
             const currentUser = await context.internalAdapter.findUserById(
@@ -102,6 +106,18 @@ export const Route = createFileRoute('/api/admin/init')({
             if (!passkey) return { status: 'passkey_required' as const }
 
             const now = new Date()
+            const bootstrapReservation =
+              await context.internalAdapter.findVerificationValue(
+                ADMIN_BOOTSTRAP_RESERVATION,
+              )
+            if (
+              !bootstrapReservation ||
+              bootstrapReservation.value !== session.user.id ||
+              bootstrapReservation.expiresAt <= now
+            ) {
+              return { status: 'expired' as const }
+            }
+
             const existingReservation =
               await context.internalAdapter.findVerificationValue(
                 ADMIN_INITIALIZATION_RESERVATION,
@@ -124,6 +140,12 @@ export const Route = createFileRoute('/api/admin/init')({
               await context.internalAdapter.updateUser(session.user.id, {
                 role: ADMIN_ROLE,
               })
+              await context.internalAdapter.deleteVerificationByIdentifier(
+                ADMIN_INITIALIZATION_RESERVATION,
+              )
+              await context.internalAdapter.deleteVerificationByIdentifier(
+                ADMIN_BOOTSTRAP_RESERVATION,
+              )
             } catch (error) {
               await context.internalAdapter.deleteVerificationByIdentifier(
                 ADMIN_INITIALIZATION_RESERVATION,
@@ -143,6 +165,12 @@ export const Route = createFileRoute('/api/admin/init')({
             return Response.json(
               { message: '请先绑定至少一个 Passkey。' },
               { status: 400 },
+            )
+          }
+          if (result.status === 'expired') {
+            return Response.json(
+              { message: '管理员注册已过期，请重新开始。' },
+              { status: 409 },
             )
           }
           if (result.status === 'conflict') {
