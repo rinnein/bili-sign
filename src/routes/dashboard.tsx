@@ -12,6 +12,7 @@ import { AppShell } from '#/components/app-shell'
 import { BiliProfile } from '#/components/bili-profile'
 import { DeviceAuthorizationCard } from '#/components/device-authorization-card'
 import { PasskeyCard } from '#/components/passkey-card'
+import { SessionManagerCard } from '#/components/session-manager-card'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import {
   AlertDialog,
@@ -211,6 +212,9 @@ function Dashboard() {
               })
             }
           />
+        </div>
+        <div className="mt-6">
+          <SessionManagerCard />
         </div>
         <Card className="mt-6 border-destructive/50">
           <CardHeader>

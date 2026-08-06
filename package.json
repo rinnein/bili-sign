@@ -43,6 +43,7 @@
     "@zxing/browser": "^0.2.1",
     "better-auth": "^1.6.26",
     "better-auth-bili-basic": "^0.2.0",
+    "bowser": "^2.14.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "input-otp": "^1.4.2",
