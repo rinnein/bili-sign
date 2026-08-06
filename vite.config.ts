@@ -261,9 +261,24 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: lazyPlugins(() => [
     devtools(),
-    nitro({ rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({
+      routeRules: {
+        '/assets/**': {
+          headers: {
+            'cache-control': 'public, max-age=31536000, immutable',
+          },
+        },
+      },
+      rollupConfig: { external: [/^@sentry\//] },
+    }),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      server: {
+        build: {
+          inlineCss: true,
+        },
+      },
+    }),
     viteReact(),
     babel({ presets: [reactCompilerPreset()] }),
   ]),

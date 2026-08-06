@@ -10,7 +10,7 @@ import { CaptchaDialog } from '#/components/captcha-dialog'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
-import appCss from '../styles.css?url'
+import '../styles.css'
 
 import type { QueryClient } from '@tanstack/react-query'
 
@@ -33,10 +33,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
     links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
       {
         rel: 'icon',
         href: '/bili-sign.svg',
