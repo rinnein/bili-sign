@@ -28,7 +28,7 @@ export function CaptchaDialog() {
       window.removeEventListener(captchaRequiredEvent, handleRequired)
   }, [])
 
-  if (!turnstileEnabled) return null
+  if (!turnstileEnabled || !turnstileSiteKey) return null
 
   function close(nextOpen: boolean) {
     setOpen(nextOpen)
