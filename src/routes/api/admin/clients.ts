@@ -1,8 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { auth } from '#/lib/auth'
-import { database } from '#/lib/database'
-import { isAdminRole, isPendingAdminRole } from '#/lib/admin'
+import { getUserRole, isAdminRole, isPendingAdminRole } from '#/lib/admin'
 
 type SafeClient = {
   client_id: string
@@ -18,6 +17,21 @@ type SafeClient = {
   updated_at?: string
   disabled?: boolean
   public?: boolean
+}
+
+type OAuthClientRecord = {
+  clientId: string
+  userId: string | null
+  name: string | null
+  uri: string | null
+  redirectUris: Array<string>
+  scopes: Array<string> | null
+  grantTypes: Array<string> | null
+  responseTypes: Array<string> | null
+  createdAt: Date | null
+  updatedAt: Date | null
+  disabled: boolean | null
+  public: boolean | null
 }
 
 function toSafeClient(client: {
@@ -65,12 +79,11 @@ export const Route = createFileRoute('/api/admin/clients')({
         if (!session)
           return Response.json({ message: '请先登录。' }, { status: 401 })
 
-        const currentUser = await database
-          .selectFrom('user')
-          .select('role')
-          .where('id', '=', session.user.id)
-          .executeTakeFirst()
-        if (isPendingAdminRole(currentUser?.role)) {
+        const context = await auth.$context
+        const currentUser = await context.internalAdapter.findUserById(
+          session.user.id,
+        )
+        if (isPendingAdminRole(getUserRole(currentUser))) {
           return Response.json(
             { message: '请先完成管理员初始化。' },
             { status: 403 },
@@ -79,13 +92,13 @@ export const Route = createFileRoute('/api/admin/clients')({
 
         const url = new URL(request.url)
         const all = url.searchParams.get('scope') === 'all'
-        if (all && !isAdminRole(currentUser?.role)) {
+        if (all && !isAdminRole(getUserRole(currentUser))) {
           return Response.json({ message: '需要管理员权限。' }, { status: 403 })
         }
 
-        const query = database
-          .selectFrom('oauthClient')
-          .select([
+        const clients = await context.adapter.findMany<OAuthClientRecord>({
+          model: 'oauthClient',
+          select: [
             'clientId',
             'userId',
             'name',
@@ -98,12 +111,12 @@ export const Route = createFileRoute('/api/admin/clients')({
             'updatedAt',
             'disabled',
             'public',
-          ])
-          .orderBy('createdAt', 'desc')
-
-        const clients = all
-          ? await query.execute()
-          : await query.where('userId', '=', session.user.id).execute()
+          ],
+          sortBy: { field: 'createdAt', direction: 'desc' },
+          where: all
+            ? undefined
+            : [{ field: 'userId', value: session.user.id }],
+        })
 
         return Response.json(clients.map(toSafeClient))
       },
@@ -112,12 +125,11 @@ export const Route = createFileRoute('/api/admin/clients')({
         if (!session)
           return Response.json({ message: '请先登录。' }, { status: 401 })
 
-        const currentUser = await database
-          .selectFrom('user')
-          .select('role')
-          .where('id', '=', session.user.id)
-          .executeTakeFirst()
-        if (isPendingAdminRole(currentUser?.role)) {
+        const context = await auth.$context
+        const currentUser = await context.internalAdapter.findUserById(
+          session.user.id,
+        )
+        if (isPendingAdminRole(getUserRole(currentUser))) {
           return Response.json(
             { message: '请先完成管理员初始化。' },
             { status: 403 },
@@ -134,16 +146,18 @@ export const Route = createFileRoute('/api/admin/clients')({
           return Response.json({ message: '缺少 Client ID。' }, { status: 400 })
         }
 
-        const client = await database
-          .selectFrom('oauthClient')
-          .select(['clientId', 'userId'])
-          .where('clientId', '=', body.client_id)
-          .executeTakeFirst()
+        const client = await context.adapter.findOne<
+          Pick<OAuthClientRecord, 'clientId' | 'userId'>
+        >({
+          model: 'oauthClient',
+          where: [{ field: 'clientId', value: body.client_id }],
+          select: ['clientId', 'userId'],
+        })
         if (!client)
           return Response.json({ message: 'Client 不存在。' }, { status: 404 })
         if (
           client.userId !== session.user.id &&
-          !isAdminRole(currentUser?.role)
+          !isAdminRole(getUserRole(currentUser))
         ) {
           return Response.json(
             { message: '没有删除此 Client 的权限。' },
@@ -151,10 +165,10 @@ export const Route = createFileRoute('/api/admin/clients')({
           )
         }
 
-        await database
-          .deleteFrom('oauthClient')
-          .where('clientId', '=', body.client_id)
-          .execute()
+        await context.adapter.delete({
+          model: 'oauthClient',
+          where: [{ field: 'clientId', value: body.client_id }],
+        })
         return Response.json({ ok: true })
       },
     },

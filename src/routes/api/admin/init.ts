@@ -1,8 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { auth } from '#/lib/auth'
-import { database } from '#/lib/database'
-import { isAdminRole, isPendingAdminRole } from '#/lib/admin'
+import {
+  ADMIN_INITIALIZATION_RESERVATION,
+  ADMIN_ROLE,
+  getUserRole,
+  isAdminRole,
+  isPendingAdminRole,
+} from '#/lib/admin'
+
+type RoleUser = {
+  id: string
+  role?: unknown
+}
 
 type InitState = {
   initialized: boolean
@@ -12,25 +22,33 @@ type InitState = {
   registrationAvailable: boolean
 }
 
-async function getSession(request: Request) {
+function getSession(request: Request) {
   return auth.api.getSession({ headers: request.headers })
 }
 
+function findAdminRoleUsers(context: Awaited<typeof auth.$context>) {
+  return context.adapter.findMany<RoleUser>({
+    model: 'user',
+    where: [{ field: 'role', value: ADMIN_ROLE, operator: 'contains' }],
+    select: ['id', 'role'],
+  })
+}
+
 async function getInitState(userId?: string): Promise<InitState> {
-  const users = await database
-    .selectFrom('user')
-    .select(['id', 'role', 'createdAt'])
-    .orderBy('createdAt', 'asc')
-    .execute()
-  const initialized = users.some((user) => isAdminRole(user.role))
-  const pendingAdmin = users.some((user) => isPendingAdminRole(user.role))
+  const context = await auth.$context
+  const roleUsers = await findAdminRoleUsers(context)
+  const initialized = roleUsers.some((user) => isAdminRole(user.role))
+  const pendingAdmin = roleUsers.some((user) => isPendingAdminRole(user.role))
+  const currentUser = userId
+    ? await context.internalAdapter.findUserById(userId)
+    : null
   const hasPasskey = userId
     ? Boolean(
-        await database
-          .selectFrom('passkey')
-          .select('id')
-          .where('userId', '=', userId)
-          .executeTakeFirst(),
+        await context.adapter.findOne({
+          model: 'passkey',
+          where: [{ field: 'userId', value: userId }],
+          select: ['id'],
+        }),
       )
     : false
 
@@ -38,12 +56,7 @@ async function getInitState(userId?: string): Promise<InitState> {
     initialized,
     canInitialize:
       !initialized &&
-      Boolean(
-        userId &&
-        users.some(
-          (user) => user.id === userId && isPendingAdminRole(user.role),
-        ),
-      ),
+      Boolean(userId && isPendingAdminRole(getUserRole(currentUser))),
     hasSession: Boolean(userId),
     hasPasskey,
     registrationAvailable: !initialized && !pendingAdmin,
@@ -67,35 +80,56 @@ export const Route = createFileRoute('/api/admin/init')({
         }
 
         try {
-          const result = await database.transaction().execute(async (tx) => {
-            const users = await tx
-              .selectFrom('user')
-              .select(['id', 'role', 'createdAt'])
-              .orderBy('createdAt', 'asc')
-              .execute()
+          const context = await auth.$context
+          const result = await context.adapter.transaction(async () => {
+            const roleUsers = await findAdminRoleUsers(context)
 
-            if (users.some((user) => isAdminRole(user.role))) {
+            if (roleUsers.some((user) => isAdminRole(user.role))) {
               return { status: 'initialized' as const }
             }
-            const currentUser = users.find(
-              (user) => user.id === session.user.id,
+            const currentUser = await context.internalAdapter.findUserById(
+              session.user.id,
             )
-            if (!currentUser || !isPendingAdminRole(currentUser.role)) {
+            if (!currentUser || !isPendingAdminRole(getUserRole(currentUser))) {
               return { status: 'forbidden' as const }
             }
 
-            const passkey = await tx
-              .selectFrom('passkey')
-              .select('id')
-              .where('userId', '=', session.user.id)
-              .executeTakeFirst()
+            const passkey = await context.adapter.findOne({
+              model: 'passkey',
+              where: [{ field: 'userId', value: session.user.id }],
+              select: ['id'],
+            })
             if (!passkey) return { status: 'passkey_required' as const }
 
-            await tx
-              .updateTable('user')
-              .set({ role: 'admin' })
-              .where('id', '=', session.user.id)
-              .execute()
+            const now = new Date()
+            const existingReservation =
+              await context.internalAdapter.findVerificationValue(
+                ADMIN_INITIALIZATION_RESERVATION,
+              )
+            if (existingReservation && existingReservation.expiresAt <= now) {
+              await context.internalAdapter.deleteVerificationByIdentifier(
+                ADMIN_INITIALIZATION_RESERVATION,
+              )
+            }
+
+            const reserved =
+              await context.internalAdapter.reserveVerificationValue({
+                identifier: ADMIN_INITIALIZATION_RESERVATION,
+                value: session.user.id,
+                expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+              })
+            if (!reserved) return { status: 'conflict' as const }
+
+            try {
+              await context.internalAdapter.updateUser(session.user.id, {
+                role: ADMIN_ROLE,
+              })
+            } catch (error) {
+              await context.internalAdapter.deleteVerificationByIdentifier(
+                ADMIN_INITIALIZATION_RESERVATION,
+              )
+              throw error
+            }
             return { status: 'initialized' as const }
           })
 
@@ -109,6 +143,12 @@ export const Route = createFileRoute('/api/admin/init')({
             return Response.json(
               { message: '请先绑定至少一个 Passkey。' },
               { status: 400 },
+            )
+          }
+          if (result.status === 'conflict') {
+            return Response.json(
+              { message: '管理员初始化正在进行中，请稍后重试。' },
+              { status: 409 },
             )
           }
           return Response.json({ initialized: true })

@@ -10,6 +10,7 @@ import { jwt } from 'better-auth/plugins/jwt'
 import { z } from 'zod'
 
 import { env } from '#/env'
+import { isAdminRole } from '#/lib/admin'
 import { database } from '#/lib/database'
 import {
   DEVICE_AUTH_CLIENT_ID,
@@ -17,6 +18,17 @@ import {
 } from '#/lib/device-auth'
 import { turnstileServerEnabled } from '#/lib/turnstile-server'
 import { adminBootstrap } from '#/lib/admin-bootstrap'
+
+type BiliAccount = {
+  accountId: string
+  providerId: string
+}
+
+type ClaimsAuthContext = {
+  internalAdapter: {
+    findAccounts: (userId: string) => Promise<Array<BiliAccount>>
+  }
+}
 
 export const auth = betterAuth({
   basePath: '/',
@@ -91,12 +103,12 @@ export const auth = betterAuth({
       customUserInfoClaims: async ({ user, scopes }) => {
         if (!scopes.includes('bili:public')) return {}
 
-        const account = await database
-          .selectFrom('account')
-          .select(['accountId'])
-          .where('providerId', '=', 'bili-basic')
-          .where('userId', '=', user.id)
-          .executeTakeFirst()
+        const accounts = await (
+          await getClaimsAuthContext()
+        ).internalAdapter.findAccounts(user.id)
+        const account = accounts.find(
+          (item) => item.providerId === 'bili-basic',
+        )
 
         return account ? { bili_mid: account.accountId } : {}
       },
@@ -104,13 +116,7 @@ export const auth = betterAuth({
         page: '/oauth/consent',
         shouldRedirect: () => false,
         consentReferenceId: ({ user }) => {
-          if (
-            typeof user.role === 'string' &&
-            user.role
-              .split(',')
-              .map((role) => role.trim())
-              .includes('admin')
-          ) {
+          if (isAdminRole(user.role)) {
             throw new APIError('FORBIDDEN', {
               error: 'access_denied',
               error_description: '管理员账户不能授权第三方应用。',
@@ -123,3 +129,7 @@ export const auth = betterAuth({
     tanstackStartCookies(),
   ],
 })
+
+function getClaimsAuthContext(): Promise<ClaimsAuthContext> {
+  return auth.$context
+}
