@@ -1,18 +1,80 @@
 import { authFetch } from '#/lib/auth-client'
 
-export async function continueOAuthLogin() {
-  if (typeof window === 'undefined') return false
+export type OAuthSearch = Record<string, string>
 
-  const oauthQuery = window.location.search.slice(1)
-  if (!oauthQuery.includes('client_id=') || !oauthQuery.includes('sig=')) {
-    return false
+export type OAuthContinuation =
+  | {
+      kind: 'none'
+    }
+  | {
+      kind: 'valid'
+      query: string
+      search: OAuthSearch
+    }
+  | {
+      kind: 'invalid'
+      message: string
+    }
+
+function queryFromSearch(search: string) {
+  return search.startsWith('?') ? search.slice(1) : search
+}
+
+export function searchToObject(search: string): OAuthSearch {
+  return Object.fromEntries(new URLSearchParams(queryFromSearch(search)))
+}
+
+export function inspectOAuthContinuation(search: string): OAuthContinuation {
+  const query = queryFromSearch(search)
+  if (!query) return { kind: 'none' }
+
+  const params = new URLSearchParams(query)
+  const requiredParameters = [
+    'client_id',
+    'redirect_uri',
+    'sig',
+    'exp',
+  ] as const
+  const hasOAuthParameter = requiredParameters.some((name) => params.has(name))
+  if (!hasOAuthParameter) return { kind: 'none' }
+
+  const missingParameter = requiredParameters.find((name) => !params.get(name))
+  if (missingParameter) {
+    return {
+      kind: 'invalid',
+      message: `OAuth 授权请求缺少必要参数：${missingParameter}`,
+    }
   }
+
+  const expiresAt = Number(params.get('exp')) * 1000
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    return { kind: 'invalid', message: 'OAuth 授权请求已过期，请重新发起。' }
+  }
+
+  return {
+    kind: 'valid',
+    query,
+    search: searchToObject(query),
+  }
+}
+
+export async function continueOAuthLogin(oauthQuery?: string) {
+  if (typeof window === 'undefined' && oauthQuery === undefined) return false
+
+  const continuation = inspectOAuthContinuation(
+    oauthQuery ?? window.location.search,
+  )
+  if (continuation.kind === 'none') return false
+  if (continuation.kind === 'invalid') throw new Error(continuation.message)
 
   const response = await authFetch('/api/auth/oauth2/continue', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ oauth_query: oauthQuery, created: true }),
+    body: JSON.stringify({
+      oauth_query: continuation.query,
+      created: true,
+    }),
   })
   const result = (await response.json()) as {
     redirect_uri?: string

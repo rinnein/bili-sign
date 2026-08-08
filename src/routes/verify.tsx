@@ -293,6 +293,12 @@ function Verify() {
             </Alert>
           </div>
         )}
+        {flow.continuationError && (
+          <Alert variant="destructive" className="mt-6">
+            <AlertTitle>OAuth 授权未继续</AlertTitle>
+            <AlertDescription>{flow.continuationError}</AlertDescription>
+          </Alert>
+        )}
         {flow.notice && (
           <Alert className="mt-6">
             <CheckCircle2Icon />

@@ -6,7 +6,7 @@ import {
   LoaderCircleIcon,
   SmartphoneIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
@@ -35,7 +35,10 @@ import {
   deviceAuthErrorCode,
   deviceAuthErrorMessage,
 } from '#/lib/device-auth'
-import { continueOAuthLogin } from '#/lib/oauth-continuation'
+import {
+  continueOAuthLogin,
+  inspectOAuthContinuation,
+} from '#/lib/oauth-continuation'
 
 export const Route = createFileRoute('/login')({ component: Login })
 
@@ -69,7 +72,40 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   const [deviceCopied, setDeviceCopied] = useState(false)
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [error, setError] = useState('')
+  const oauthContinuationPromise = useRef<Promise<boolean> | null>(null)
   const targetRoute = adminMode ? '/admin/dashboard' : '/dashboard'
+
+  const resumeOAuth = useCallback((oauthQuery?: string) => {
+    if (!oauthContinuationPromise.current) {
+      oauthContinuationPromise.current = continueOAuthLogin(oauthQuery).catch(
+        (continuationError) => {
+          oauthContinuationPromise.current = null
+          throw continuationError
+        },
+      )
+    }
+    return oauthContinuationPromise.current
+  }, [])
+
+  useEffect(() => {
+    if (adminMode || sessionPending || switchingAccount || !session?.user) {
+      return
+    }
+    const continuation = inspectOAuthContinuation(window.location.search)
+    if (continuation.kind === 'none') return
+    if (continuation.kind === 'invalid') {
+      setError(continuation.message)
+      return
+    }
+
+    void resumeOAuth(continuation.query).catch((continuationError) => {
+      setError(
+        continuationError instanceof Error
+          ? continuationError.message
+          : '无法继续授权，请重新发起登录。',
+      )
+    })
+  }, [adminMode, resumeOAuth, session?.user, sessionPending, switchingAccount])
 
   useEffect(() => {
     if (!pendingDeviceAuth) return
@@ -113,7 +149,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
           }
           stop()
           await refetch({ query: { disableCookieCache: true } })
-          if (!adminMode && (await continueOAuthLogin())) return
+          if (!adminMode && (await resumeOAuth())) return
           await navigate({ to: targetRoute })
           return
         }
@@ -161,10 +197,25 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
       if (timer) window.clearTimeout(timer)
       window.clearInterval(countdown)
     }
-  }, [adminMode, navigate, pendingDeviceAuth, refetch, targetRoute])
+  }, [
+    adminMode,
+    navigate,
+    pendingDeviceAuth,
+    refetch,
+    resumeOAuth,
+    targetRoute,
+  ])
 
   function continueWithBili() {
-    window.location.assign(`/verify${window.location.search}`)
+    const continuation = inspectOAuthContinuation(window.location.search)
+    if (continuation.kind === 'invalid') {
+      setError(continuation.message)
+      return
+    }
+    void navigate({
+      to: '/verify',
+      search: continuation.kind === 'valid' ? continuation.search : {},
+    })
   }
 
   async function signInWithPasskey() {
@@ -178,7 +229,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
         )
       }
       await refetch()
-      if (!adminMode && (await continueOAuthLogin())) return
+      if (!adminMode && (await resumeOAuth())) return
       await navigate({ to: targetRoute })
     } catch (loginError) {
       setError(

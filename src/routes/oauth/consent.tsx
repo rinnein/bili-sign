@@ -1,6 +1,6 @@
 import { CheckIcon, ShieldCheckIcon, XIcon } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { createFileRoute } from '@tanstack/react-router'
+import { useEffect, useRef, useState } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 import { authClient, authFetch } from '#/lib/auth-client'
+import { inspectOAuthContinuation } from '#/lib/oauth-continuation'
 
 export const Route = createFileRoute('/oauth/consent')({
   component: OAuthConsent,
@@ -21,22 +22,27 @@ export const Route = createFileRoute('/oauth/consent')({
 
 function OAuthConsent() {
   const { data: session, isPending } = authClient.useSession()
+  const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [clientId, setClientId] = useState('')
   const [clientName, setClientName] = useState('第三方应用')
   const [clientUri, setClientUri] = useState('')
   const [scopes, setScopes] = useState<Array<string>>([])
   const [error, setError] = useState('')
+  const [oauthError, setOAuthError] = useState('')
+  const [queryReady, setQueryReady] = useState(false)
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const redirectStarted = useRef(false)
 
   useEffect(() => {
-    const currentQuery = window.location.search.slice(1)
-    const params = new URLSearchParams(currentQuery)
-    setQuery(currentQuery)
-    const requestedClientId = params.get('client_id') ?? ''
-    setClientId(requestedClientId || '第三方应用')
-    setScopes((params.get('scope') ?? '').split(' ').filter(Boolean))
-    if (requestedClientId) {
+    const continuation = inspectOAuthContinuation(window.location.search)
+    if (continuation.kind === 'valid') {
+      const params = new URLSearchParams(continuation.query)
+      setQuery(continuation.query)
+      const requestedClientId = params.get('client_id') ?? ''
+      setClientId(requestedClientId)
+      setScopes((params.get('scope') ?? '').split(' ').filter(Boolean))
       void authFetch(
         `/api/auth/oauth2/public-client?client_id=${encodeURIComponent(requestedClientId)}`,
       )
@@ -50,8 +56,40 @@ function OAuthConsent() {
           setClientUri(client.client_uri || '')
         })
         .catch(() => {})
+    } else {
+      setOAuthError(
+        continuation.kind === 'invalid'
+          ? continuation.message
+          : 'OAuth 授权请求缺少必要参数。',
+      )
     }
+    setQueryReady(true)
   }, [])
+
+  useEffect(() => {
+    const continuation = inspectOAuthContinuation(window.location.search)
+    if (
+      isPending ||
+      session?.user ||
+      !queryReady ||
+      continuation.kind !== 'valid' ||
+      redirectStarted.current
+    ) {
+      return
+    }
+
+    redirectStarted.current = true
+    setRedirectingToLogin(true)
+    void navigate({
+      to: '/login',
+      search: continuation.search,
+      replace: true,
+    }).catch(() => {
+      redirectStarted.current = false
+      setRedirectingToLogin(false)
+      setOAuthError('无法打开登录页面，请重试。')
+    })
+  }, [isPending, navigate, queryReady, session?.user])
 
   async function submit(accept: boolean) {
     setSubmitting(true)
@@ -90,10 +128,25 @@ function OAuthConsent() {
         </div>
       </AppShell>
     )
-  if (!session?.user)
+  if (!queryReady || redirectingToLogin)
     return (
       <AppShell>
-        <OAuthLoginRedirect query={query} />
+        <div className="mx-auto max-w-xl px-4 py-12 text-center text-sm text-muted-foreground">
+          正在准备登录…
+        </div>
+      </AppShell>
+    )
+  if (oauthError || !session?.user)
+    return (
+      <AppShell>
+        <div className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 lg:py-10">
+          <Alert variant="destructive">
+            <AlertTitle>授权请求无效</AlertTitle>
+            <AlertDescription>
+              {oauthError || '当前账号尚未登录。'}
+            </AlertDescription>
+          </Alert>
+        </div>
       </AppShell>
     )
 
@@ -182,32 +235,5 @@ function OAuthConsent() {
         </Card>
       </div>
     </AppShell>
-  )
-}
-
-function OAuthLoginRedirect({ query }: { query: string }) {
-  return (
-    <div className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 lg:py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle>需要先验证 B 站账号</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm leading-7 text-muted-foreground">
-            完成账号验证后，返回此页面继续授权。原始 state 和 OAuth 参数会保留。
-          </p>
-        </CardContent>
-        <CardFooter className="border-t">
-          <Button
-            type="button"
-            onClick={() =>
-              window.location.assign(query ? `/verify?${query}` : '/verify')
-            }
-          >
-            返回账号验证
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
   )
 }

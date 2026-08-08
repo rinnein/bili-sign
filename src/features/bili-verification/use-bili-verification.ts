@@ -11,6 +11,7 @@ import {
   writeVerificationCache,
 } from '#/lib/bili-flow'
 import { readLastMid, rememberMid, resolveMidInput } from '#/lib/mid'
+import { continueOAuthLogin } from '#/lib/oauth-continuation'
 import { pluginBridge } from '#/lib/plugin-bridge'
 import {
   getVerificationCooldownRemaining,
@@ -33,6 +34,7 @@ export function useBiliVerification({
   const [verificationCompleted, setVerificationCompleted] = useState(false)
   const [originalSign, setOriginalSign] = useState('')
   const [error, setError] = useState('')
+  const [continuationError, setContinuationError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirmCooldownRemaining, setConfirmCooldownRemaining] = useState(() =>
@@ -82,6 +84,7 @@ export function useBiliVerification({
 
   async function lookup() {
     setError('')
+    setContinuationError('')
     setNotice('')
 
     setBusy(true)
@@ -186,6 +189,7 @@ export function useBiliVerification({
     if (!beginConfirmation()) return false
     setBusy(true)
     setError('')
+    setContinuationError('')
     setNotice('')
     try {
       return await completeVerification()
@@ -210,6 +214,7 @@ export function useBiliVerification({
     let failure = ''
     setBusy(true)
     setError('')
+    setContinuationError('')
     setNotice('')
     try {
       await pluginBridge.request('bili.direct-login', 'direct-login.start', {
@@ -254,12 +259,14 @@ export function useBiliVerification({
     })
     setVerificationCompleted(true)
     setNotice('验证已完成。请先恢复 B 站原签名，再点击上方的“我已恢复”。')
-    await continueOAuth()
-    const returnTo = new URLSearchParams(window.location.search).get(
-      'return_to',
-    )
-    if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
-      window.location.assign(returnTo)
+    try {
+      await continueOAuthLogin()
+    } catch (continuationFailure) {
+      setContinuationError(
+        continuationFailure instanceof Error
+          ? continuationFailure.message
+          : '验证已完成，但无法继续 OAuth 授权。',
+      )
     }
     return true
   }
@@ -270,22 +277,8 @@ export function useBiliVerification({
     setChallenge(null)
     setVerificationCompleted(false)
     setError('')
+    setContinuationError('')
     setNotice('')
-  }
-
-  async function continueOAuth() {
-    const oauthQuery = window.location.search.slice(1)
-    if (!oauthQuery.includes('client_id=') || !oauthQuery.includes('sig='))
-      return
-    const response = await authFetch('/api/auth/oauth2/continue', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ oauth_query: oauthQuery, created: true }),
-    })
-    const result = (await response.json()) as { redirect_uri?: string }
-    if (response.ok && result.redirect_uri)
-      window.location.assign(result.redirect_uri)
   }
 
   function clearCache() {
@@ -296,6 +289,7 @@ export function useBiliVerification({
     setOriginalSign('')
     setMid('')
     setError('')
+    setContinuationError('')
     setNotice('')
   }
 
@@ -307,6 +301,7 @@ export function useBiliVerification({
     verificationCompleted,
     originalSign,
     error,
+    continuationError,
     notice,
     busy,
     confirmCooldownRemaining,
