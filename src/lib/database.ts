@@ -28,13 +28,25 @@ export interface AuthDatabase {
     userId: string | null
     name: string | null
     uri: string | null
+    icon: string | null
+    contacts: Array<string> | null
+    tos: string | null
+    policy: string | null
+    softwareId: string | null
+    softwareVersion: string | null
+    softwareStatement: string | null
     redirectUris: Array<string>
+    postLogoutRedirectUris: Array<string> | null
+    tokenEndpointAuthMethod: string | null
     scopes: Array<string> | null
     grantTypes: Array<string> | null
     responseTypes: Array<string> | null
+    type: string | null
     createdAt: Date | null
     updatedAt: Date | null
     disabled: boolean | null
+    skipConsent: boolean | null
+    enableEndSession: boolean | null
     public: boolean | null
   }
 }

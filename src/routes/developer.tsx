@@ -28,7 +28,7 @@ import {
 } from '#/components/ui/empty'
 import { Field, FieldGroup, FieldLabel } from '#/components/ui/field'
 import { Input } from '#/components/ui/input'
-import { authClient, authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 import { isPendingAdminRole } from '#/lib/admin'
 
 export const Route = createFileRoute('/developer')({ component: Developer })
@@ -89,32 +89,19 @@ function Developer() {
 
     setBusy(true)
     try {
-      const response = await authFetch('/api/auth/oauth2/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          client_name: name,
-          client_uri: uri,
-          redirect_uris: [redirect],
-          scope: 'openid profile bili:public',
-          token_endpoint_auth_method: 'client_secret_basic',
-          grant_types: ['authorization_code', 'refresh_token'],
-          response_types: ['code'],
-          type: 'web',
-        }),
+      const result = await authClient.oauth2.register({
+        client_name: name,
+        client_uri: uri,
+        redirect_uris: [redirect],
+        scope: 'openid profile bili:public',
+        token_endpoint_auth_method: 'client_secret_basic',
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        type: 'web',
       })
-      const result = (await response.json()) as RegisteredClient & {
-        error?: string
-        error_description?: string
-        message?: string
-      }
-      if (!response.ok || !result.client_id) {
-        throw new Error(
-          result.error_description ?? result.message ?? 'Client 创建失败。',
-        )
-      }
-      setRegisteredClient(result)
+      if (result.error)
+        throw new Error(result.error.message ?? 'Client 创建失败。')
+      setRegisteredClient(result.data)
       setRefreshKey((current) => current + 1)
       setClientName('')
       setClientUri('')

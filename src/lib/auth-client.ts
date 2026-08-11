@@ -1,4 +1,5 @@
 import { passkeyClient } from '@better-auth/passkey/client'
+import { oauthProviderClient } from '@better-auth/oauth-provider/client'
 import { biliBasicClient } from 'better-auth-bili-basic/client'
 import type { BetterAuthClientPlugin } from 'better-auth/client'
 import {
@@ -8,6 +9,7 @@ import {
 } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 
+import type { adminBootstrap } from '#/lib/admin-bootstrap'
 import { captchaAwareFetch } from '#/lib/captcha-prompt'
 
 const rawBiliPlugin = biliBasicClient()
@@ -22,7 +24,7 @@ export function clearDeviceSessionToken() {
   deviceSessionToken = null
 }
 
-export async function authFetch(input: RequestInfo | URL, init?: RequestInit) {
+async function authFetch(input: RequestInfo | URL, init?: RequestInit) {
   const headers = new Headers(
     input instanceof Request ? input.headers : init?.headers,
   )
@@ -30,6 +32,10 @@ export async function authFetch(input: RequestInfo | URL, init?: RequestInit) {
     headers.set('authorization', `Bearer ${deviceSessionToken}`)
   }
   return captchaAwareFetch(input, { ...init, headers })
+}
+
+export async function appFetch(input: RequestInfo | URL, init?: RequestInit) {
+  return authFetch(input, init)
 }
 
 const biliPlugin = {
@@ -42,12 +48,19 @@ const biliPlugin = {
     ),
 }
 
+const adminBootstrapClient = {
+  id: 'admin-bootstrap-client',
+  $InferServerPlugin: {} as typeof adminBootstrap,
+} satisfies BetterAuthClientPlugin
+
 export const authClient = createAuthClient({
   fetchOptions: {
     customFetchImpl: authFetch,
   },
   plugins: [
     biliPlugin,
+    oauthProviderClient(),
+    adminBootstrapClient,
     passkeyClient(),
     deviceAuthorizationClient(),
     adminClient(),

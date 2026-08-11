@@ -1,4 +1,4 @@
-import { authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 
 export type OAuthSearch = Record<string, string>
 
@@ -67,23 +67,14 @@ export async function continueOAuthLogin(oauthQuery?: string) {
   if (continuation.kind === 'none') return false
   if (continuation.kind === 'invalid') throw new Error(continuation.message)
 
-  const response = await authFetch('/api/auth/oauth2/continue', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({
-      oauth_query: continuation.query,
-      created: true,
-    }),
+  const result = await authClient.oauth2.continue({
+    oauth_query: continuation.query,
+    created: true,
   })
-  const result = (await response.json()) as {
-    redirect_uri?: string
-    error?: string
-  }
-  if (!response.ok || !result.redirect_uri) {
-    throw new Error(result.error ?? '无法继续授权，请重新发起登录。')
+  if (result.error) {
+    throw new Error(result.error.message ?? '无法继续授权，请重新发起登录。')
   }
 
-  window.location.assign(result.redirect_uri)
+  window.location.assign(result.data.url)
   return true
 }

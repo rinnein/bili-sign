@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
-import { authClient, authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 import { inspectOAuthContinuation } from '#/lib/oauth-continuation'
 
 export const Route = createFileRoute('/oauth/consent')({
@@ -43,17 +43,14 @@ function OAuthConsent() {
       const requestedClientId = params.get('client_id') ?? ''
       setClientId(requestedClientId)
       setScopes((params.get('scope') ?? '').split(' ').filter(Boolean))
-      void authFetch(
-        `/api/auth/oauth2/public-client?client_id=${encodeURIComponent(requestedClientId)}`,
-      )
-        .then(async (response) => {
-          if (!response.ok) return
-          const client = (await response.json()) as {
-            client_name?: string
-            client_uri?: string
-          }
-          setClientName(client.client_name || '第三方应用')
-          setClientUri(client.client_uri || '')
+      void authClient.oauth2
+        .publicClient({
+          query: { client_id: requestedClientId },
+        })
+        .then((result) => {
+          if (result.error) return
+          setClientName(result.data.client_name || '第三方应用')
+          setClientUri(result.data.client_uri || '')
         })
         .catch(() => {})
     } else {
@@ -95,23 +92,14 @@ function OAuthConsent() {
     setSubmitting(true)
     setError('')
     try {
-      const response = await authFetch('/api/auth/oauth2/consent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          accept,
-          scope: scopes.join(' '),
-          oauth_query: query,
-        }),
+      const result = await authClient.oauth2.consent({
+        accept,
+        scope: scopes.join(' '),
+        oauth_query: query,
       })
-      const result = (await response.json()) as {
-        redirect_uri?: string
-        message?: string
-      }
-      if (!response.ok || !result.redirect_uri)
-        throw new Error(result.message ?? '授权请求处理失败')
-      window.location.assign(result.redirect_uri)
+      if (result.error)
+        throw new Error(result.error.message ?? '授权请求处理失败')
+      window.location.assign(result.data.url)
     } catch (submitError) {
       setError(
         submitError instanceof Error ? submitError.message : '授权请求处理失败',

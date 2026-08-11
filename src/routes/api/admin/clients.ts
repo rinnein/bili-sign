@@ -8,10 +8,20 @@ type SafeClient = {
   user_id?: string
   client_name?: string
   client_uri?: string
+  logo_uri?: string
   redirect_uris: Array<string>
   scope?: string
+  contacts?: Array<string>
+  tos_uri?: string
+  policy_uri?: string
+  software_id?: string
+  software_version?: string
+  software_statement?: string
+  post_logout_redirect_uris?: Array<string>
+  token_endpoint_auth_method?: string
   grant_types?: Array<string>
   response_types?: Array<string>
+  type?: string
   client_id_issued_at?: number
   created_at?: string
   updated_at?: string
@@ -24,10 +34,20 @@ type OAuthClientRecord = {
   userId: string | null
   name: string | null
   uri: string | null
+  icon: string | null
+  contacts: Array<string> | null
+  tos: string | null
+  policy: string | null
+  softwareId: string | null
+  softwareVersion: string | null
+  softwareStatement: string | null
   redirectUris: Array<string>
+  postLogoutRedirectUris: Array<string> | null
+  tokenEndpointAuthMethod: string | null
   scopes: Array<string> | null
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
+  type: string | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
@@ -39,10 +59,20 @@ function toSafeClient(client: {
   userId: string | null
   name: string | null
   uri: string | null
+  icon: string | null
+  contacts: Array<string> | null
+  tos: string | null
+  policy: string | null
+  softwareId: string | null
+  softwareVersion: string | null
+  softwareStatement: string | null
   redirectUris: Array<string>
+  postLogoutRedirectUris: Array<string> | null
+  tokenEndpointAuthMethod: string | null
   scopes: Array<string> | null
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
+  type: string | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
@@ -53,10 +83,20 @@ function toSafeClient(client: {
     user_id: client.userId ?? undefined,
     client_name: client.name ?? undefined,
     client_uri: client.uri ?? undefined,
+    logo_uri: client.icon ?? undefined,
     redirect_uris: client.redirectUris,
     scope: client.scopes?.join(' '),
+    contacts: client.contacts ?? undefined,
+    tos_uri: client.tos ?? undefined,
+    policy_uri: client.policy ?? undefined,
+    software_id: client.softwareId ?? undefined,
+    software_version: client.softwareVersion ?? undefined,
+    software_statement: client.softwareStatement ?? undefined,
+    post_logout_redirect_uris: client.postLogoutRedirectUris ?? undefined,
+    token_endpoint_auth_method: client.tokenEndpointAuthMethod ?? undefined,
     grant_types: client.grantTypes ?? undefined,
     response_types: client.responseTypes ?? undefined,
+    type: client.type ?? undefined,
     client_id_issued_at: client.createdAt
       ? Math.floor(client.createdAt.getTime() / 1000)
       : undefined,
@@ -103,10 +143,20 @@ export const Route = createFileRoute('/api/admin/clients')({
             'userId',
             'name',
             'uri',
+            'icon',
+            'contacts',
+            'tos',
+            'policy',
+            'softwareId',
+            'softwareVersion',
+            'softwareStatement',
             'redirectUris',
+            'postLogoutRedirectUris',
+            'tokenEndpointAuthMethod',
             'scopes',
             'grantTypes',
             'responseTypes',
+            'type',
             'createdAt',
             'updatedAt',
             'disabled',

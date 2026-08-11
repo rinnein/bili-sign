@@ -40,7 +40,7 @@ import {
   EmptyTitle,
 } from '#/components/ui/empty'
 import { Skeleton } from '#/components/ui/skeleton'
-import { authClient, authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 import { displayValue, getBiliInfo } from '#/lib/bili-flow'
 import type { BiliInfo } from '#/lib/bili-flow'
 import { usePluginBridge } from '#/lib/plugin-bridge'
@@ -66,14 +66,9 @@ function Dashboard() {
   }, [pluginState.ready, session?.user])
 
   async function loadAccounts() {
-    const response = await authFetch('/api/auth/list-accounts', {
-      credentials: 'include',
-    })
-    if (!response.ok) return
-    const result = (await response.json()) as unknown
-    if (!Array.isArray(result)) return
-    const nextAccounts = result.flatMap((value) => {
-      if (typeof value !== 'object' || value === null) return []
+    const result = await authClient.listAccounts()
+    if (result.error) return
+    const nextAccounts = result.data.flatMap((value) => {
       const account = value as Record<string, unknown>
       if (account.providerId !== 'bili-basic') return []
       return [

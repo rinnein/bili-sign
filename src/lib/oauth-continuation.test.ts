@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 import {
   continueOAuthLogin,
   inspectOAuthContinuation,
@@ -8,11 +8,15 @@ import {
 } from './oauth-continuation'
 
 vi.mock('#/lib/auth-client', () => ({
-  authFetch: vi.fn(),
+  authClient: {
+    oauth2: {
+      continue: vi.fn(),
+    },
+  },
 }))
 
 const originalWindow = globalThis.window
-const mockedAuthFetch = vi.mocked(authFetch)
+const mockedOAuthContinue = vi.mocked(authClient.oauth2.continue)
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -74,23 +78,16 @@ describe('OAuth continuation', () => {
         },
       },
     })
-    mockedAuthFetch.mockResolvedValue(
-      Response.json({ redirect_uri: 'https://client.example/callback?code=1' }),
-    )
+    mockedOAuthContinue.mockResolvedValue({
+      data: {
+        redirect: true,
+        url: 'https://client.example/callback?code=1',
+      },
+      error: null,
+    })
 
     await expect(continueOAuthLogin()).resolves.toBe(true)
-    expect(mockedAuthFetch).toHaveBeenCalledWith(
-      '/api/auth/oauth2/continue',
-      expect.objectContaining({
-        method: 'POST',
-        credentials: 'include',
-      }),
-    )
-    const requestInit = mockedAuthFetch.mock.calls[0]?.[1]
-    const requestBody = requestInit?.body
-    expect(
-      typeof requestBody === 'string' ? JSON.parse(requestBody) : null,
-    ).toEqual({
+    expect(mockedOAuthContinue).toHaveBeenCalledWith({
       oauth_query: query,
       created: true,
     })

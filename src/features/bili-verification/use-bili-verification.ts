@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { authClient, authFetch } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth-client'
 import type { BiliChallenge, BiliInfo } from '#/lib/bili-flow'
 import {
   clearVerificationCache,
@@ -151,15 +151,16 @@ export function useBiliVerification({
       if (sessionsResult.error) return false
 
       for (const deviceSession of sessionsResult.data) {
-        const accountsResponse = await authFetch('/api/auth/list-accounts', {
-          headers: {
-            Authorization: `Bearer ${deviceSession.session.token}`,
+        const accountsResponse = await authClient.listAccounts({
+          fetchOptions: {
+            headers: {
+              Authorization: `Bearer ${deviceSession.session.token}`,
+            },
           },
-          credentials: 'include',
         })
-        if (!accountsResponse.ok) continue
+        if (accountsResponse.error) continue
 
-        const accounts = (await accountsResponse.json()) as unknown
+        const accounts = accountsResponse.data as unknown
         const matched =
           Array.isArray(accounts) &&
           accounts.some((account) => {

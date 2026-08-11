@@ -18,7 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from '#/components/ui/card'
-import { authClient, authFetch } from '#/lib/auth-client'
+import { appFetch, authClient } from '#/lib/auth-client'
 
 export const Route = createFileRoute('/init')({ component: Init })
 
@@ -44,7 +44,7 @@ function Init() {
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    void authFetch('/api/admin/init')
+    void appFetch('/api/admin/init')
       .then(async (response) => {
         const result = (await response.json()) as InitState
         if (!cancelled) setState(result)
@@ -64,7 +64,7 @@ function Init() {
     setBusy(true)
     setError('')
     try {
-      const response = await authFetch('/api/admin/init', {
+      const response = await appFetch('/api/admin/init', {
         method: 'POST',
         credentials: 'include',
       })
@@ -82,16 +82,9 @@ function Init() {
     setBusy(true)
     setError('')
     try {
-      const response = await authFetch('/api/auth/admin/bootstrap', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      const result = (await response.json()) as { message?: string }
-      if (!response.ok) {
-        throw new Error(result.message ?? '管理员注册暂时无法开始。')
-      }
+      const result = await authClient.admin.bootstrap({})
+      if (result.error)
+        throw new Error(result.error.message ?? '管理员注册暂时无法开始。')
       await refetch()
     } catch (registrationError) {
       setError(

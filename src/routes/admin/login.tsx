@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { LoginPage } from '#/routes/login'
-import { authFetch } from '#/lib/auth-client'
+import { appFetch } from '#/lib/auth-client'
 
 export const Route = createFileRoute('/admin/login')({
   component: AdminLogin,
@@ -13,7 +13,7 @@ function AdminLogin() {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    void authFetch('/api/admin/init')
+    void appFetch('/api/admin/init')
       .then(async (response) => {
         if (!response.ok) return
         const result = (await response.json()) as { initialized?: boolean }
