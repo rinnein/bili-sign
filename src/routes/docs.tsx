@@ -177,19 +177,30 @@ function Docs() {
                 </div>
                 <div>
                   <code>bili.api.proxy</code>
-                  <p>代替网站请求 B 站公开资料，返回公开资料字段。</p>
+                  <p>
+                    代理 B
+                    站请求，优先覆盖当前账号读取、公开资料和签名验证；响应可能包含用户主动授权的登录态资料。
+                  </p>
                 </div>
                 <div>
                   <code>bili.direct-login</code>
                   <p>自动完成临时签名、验证和原签名恢复。</p>
                 </div>
               </div>
+              <p>
+                代理请求使用 <code>bili.api.request</code>，只接受 B 站 HTTPS
+                地址和 GET/POST 方法。签名写入使用 <code>user_sign</code>，CSRF
+                由插件在本地注入；快捷登录恢复使用可等待的
+                <code>direct-login.finish</code>{' '}
+                请求，网站确认恢复成功后才会继续。
+              </p>
               <Separator />
               <p>
                 插件可以在本地使用自身的 B
-                站登录状态来完成公开资料转发或自动签名操作。 网站不会接收插件的
-                Cookie、access token、refresh token、密码或隐私资料，
-                只接收完成验证所需的公开字段。握手必须回传网站提供的
+                站登录状态来完成请求转发或自动签名操作。网站不会接收插件的
+                Cookie、CSRF、access token、refresh token
+                或密码，但代理响应可能包含当前登录态允许读取的资料；
+                只有在信任插件和当前网站时才应启用该能力。握手必须回传网站提供的
                 nonce，请求使用 requestId，网站会校验来源、超时和响应字段。
               </p>
               <pre className="overflow-x-auto border bg-muted p-4 text-xs leading-6">

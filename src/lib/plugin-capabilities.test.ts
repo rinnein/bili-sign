@@ -17,7 +17,7 @@ describe('plugin capability labels', () => {
   it('preserves the descriptor capability order', () => {
     expect(
       getPluginCapabilityLabels(['bili.api.proxy', 'bili.mid.read']),
-    ).toEqual(['代理 B 站公开资料请求', '读取 B 站 MID'])
+    ).toEqual(['代理 B 站请求（优先覆盖登录与资料功能）', '读取当前 B 站 MID'])
   })
 
   it('explains an empty capability declaration', () => {

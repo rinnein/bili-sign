@@ -54,9 +54,9 @@ export function SafetyDialog({
         <DialogHeader>
           <DialogTitle>开始前请确认</DialogTitle>
           <DialogDescription>
-            这是无需输入 B
-            站密码的公开资料验证服务。流程只读取公开资料，不接收或保存 B 站
-            Cookie、access token 或隐私接口数据。
+            这是无需输入 B 站密码的账号验证服务。已连接插件可能使用其本地 B
+            站登录态代理请求；网站不会接收或保存 B 站 Cookie、CSRF、access token
+            或密码，但代理响应可能包含该登录态允许读取的资料。
           </DialogDescription>
         </DialogHeader>
         <Alert>

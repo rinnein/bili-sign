@@ -38,6 +38,7 @@ describe('plugin bridge', () => {
     const hello = messages[0]
     listeners[0]({
       source: fakeWindow,
+      origin: 'http://localhost',
       data: {
         channel: pluginChannel,
         type: 'bili-sign:ready',
@@ -60,6 +61,7 @@ describe('plugin bridge', () => {
     const request = messages.at(-1)!
     listeners[0]({
       source: fakeWindow,
+      origin: 'http://localhost',
       data: {
         channel: pluginChannel,
         type: 'bili-sign:response',
@@ -81,6 +83,7 @@ describe('plugin bridge', () => {
 
     listeners[0]({
       source: fakeWindow,
+      origin: 'http://localhost',
       data: {
         channel: pluginChannel,
         type: 'bili-sign:ready',
@@ -107,6 +110,7 @@ describe('plugin bridge', () => {
     const hello = messages[0]
     listeners[0]({
       source: fakeWindow,
+      origin: 'http://localhost',
       data: {
         channel: pluginChannel,
         type: 'bili-sign:ready',
@@ -136,6 +140,7 @@ describe('plugin bridge', () => {
     const hello = messages[0]
     listeners[0]({
       source: fakeWindow,
+      origin: 'http://localhost',
       data: {
         channel: pluginChannel,
         type: 'bili-sign:ready',
@@ -161,5 +166,31 @@ describe('plugin bridge', () => {
     controller.abort()
 
     await expect(request).rejects.toThrow('插件请求已取消')
+  })
+
+  it('ignores ready messages from another origin', async () => {
+    const { fakeWindow, messages, listeners } = installWindow()
+    const bridge = new PluginBridge()
+    const readyPromise = bridge.waitUntilReady(1)
+    const hello = messages[0]
+
+    listeners[0]({
+      source: fakeWindow,
+      origin: 'https://evil.example',
+      data: {
+        channel: pluginChannel,
+        type: 'bili-sign:ready',
+        protocolVersion: 1,
+        nonce: hello.nonce,
+        plugin: {
+          id: 'example',
+          name: 'Example',
+          version: '1.0.0',
+          capabilities: ['bili.api.proxy'],
+        },
+      },
+    } as unknown as MessageEvent)
+
+    await expect(readyPromise).resolves.toBeNull()
   })
 })

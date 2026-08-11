@@ -76,13 +76,19 @@ export function displayValue(value: unknown, fallback = '') {
 export async function getBiliInfo(mid: string): Promise<BiliInfo> {
   const plugin = await pluginBridge.waitUntilReady()
   if (plugin?.capabilities.includes('bili.api.proxy')) {
-    const result = await pluginBridge.request<unknown>(
-      'bili.api.proxy',
-      'bili.public-info.get',
-      { mid },
-    )
-    if (!isPublicBiliInfo(result)) throw new Error('插件返回的账号资料格式无效')
-    return result
+    try {
+      const result = await pluginBridge.request<unknown>(
+        'bili.api.proxy',
+        'bili.public-info.get',
+        { mid },
+      )
+      if (!isPublicBiliInfo(result))
+        throw new Error('插件返回的账号资料格式无效')
+      return result
+    } catch {
+      // A proxy can be connected without an authenticated Bilibili session.
+      // Keep the website's public-data fallback available in that case.
+    }
   }
 
   const response = await fetch('/api/bili-info', {

@@ -32,13 +32,17 @@ import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'
 import { hasAcknowledgedSafetyNotice } from '#/lib/safety-notice'
 import { openBiliSettings } from '#/lib/bili-flow'
+import { parseBiliNavMid, requestBiliApi } from '#/lib/bili-api-proxy'
 import { useBiliVerification } from '#/features/bili-verification/use-bili-verification'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '#/components/ui/tooltip'
-import { getPluginCapabilityLabels } from '#/lib/plugin-capabilities'
+import {
+  getEffectivePluginLoginMode,
+  getPluginCapabilityLabels,
+} from '#/lib/plugin-capabilities'
 import { pluginBridge, usePluginBridge } from '#/lib/plugin-bridge'
 import { cn } from '#/lib/utils'
 import {
@@ -59,6 +63,7 @@ function Verify() {
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [safetyOpen, setSafetyOpen] = useState(false)
   const [pendingNext, setPendingNext] = useState(false)
+  const [leavingDashboard, setLeavingDashboard] = useState(false)
   const [nextWaitRemaining, setNextWaitRemaining] = useState(() =>
     getVerificationNextCooldownRemaining(),
   )
@@ -84,20 +89,47 @@ function Verify() {
   }, [flow.error])
 
   useEffect(() => {
-    if (
-      requestedPluginMid.current ||
-      flow.mid ||
-      !pluginState.descriptor?.capabilities.includes('bili.mid.read')
-    ) {
+    if (requestedPluginMid.current || flow.mid || !pluginState.descriptor) {
       return
     }
     requestedPluginMid.current = true
-    void pluginBridge
-      .request<{ mid: string }>('bili.mid.read', 'mid.get', {})
-      .then((result) => {
-        if (/^\d+$/.test(result.mid)) flow.setMid(result.mid)
-      })
-      .catch(() => {})
+    const capabilities = pluginState.descriptor.capabilities
+    const readMid = async () => {
+      try {
+        if (capabilities.includes('bili.api.proxy')) {
+          const result = await requestBiliApi({
+            url: 'https://api.bilibili.com/x/web-interface/nav',
+            method: 'GET',
+          })
+          return parseBiliNavMid(result)
+        }
+        if (capabilities.includes('bili.mid.read')) {
+          const result = await pluginBridge.request<{ mid: string }>(
+            'bili.mid.read',
+            'mid.get',
+            {},
+          )
+          return result.mid
+        }
+      } catch {
+        if (capabilities.includes('bili.mid.read')) {
+          try {
+            const result = await pluginBridge.request<{ mid: string }>(
+              'bili.mid.read',
+              'mid.get',
+              {},
+            )
+            return result.mid
+          } catch {
+            return ''
+          }
+        }
+      }
+      return ''
+    }
+    void readMid().then((value) => {
+      if (/^\d+$/.test(value)) flow.setMid(value)
+    })
   }, [flow, pluginState.descriptor])
 
   async function proceedToLookup(ignorePending = false) {
@@ -130,8 +162,24 @@ function Verify() {
     return await flow.confirmVerification()
   }
 
+  async function navigateToDashboard() {
+    setLeavingDashboard(true)
+    await navigate({ to: '/dashboard' })
+    flow.clearCache()
+  }
+
   async function loginWithPlugin() {
-    return await flow.loginWithPlugin()
+    setLeavingDashboard(true)
+    const success = await flow.loginWithPlugin()
+    if (!success) {
+      setLeavingDashboard(false)
+      return
+    }
+    try {
+      await navigateToDashboard()
+    } catch {
+      setLeavingDashboard(false)
+    }
   }
 
   if (isPending) {
@@ -144,9 +192,32 @@ function Verify() {
     )
   }
 
-  const directLogin =
-    pluginState.descriptor?.capabilities.includes('bili.direct-login')
-  const currentStep = flow.challenge ? 2 : flow.verificationCompleted ? 3 : 1
+  if (leavingDashboard) {
+    return (
+      <AppShell>
+        <div className="mx-auto w-full max-w-xl px-4 py-20 text-center text-sm text-muted-foreground">
+          正在进入账户面板…
+        </div>
+      </AppShell>
+    )
+  }
+
+  const pluginLoginMode = getEffectivePluginLoginMode(
+    pluginState.descriptor?.capabilities,
+  )
+  const directLogin = pluginLoginMode !== null
+  const steps = directLogin
+    ? ['账号', '插件登录']
+    : ['账号', '签名验证', '完成']
+  const currentStep = directLogin
+    ? flow.challenge
+      ? 2
+      : 1
+    : flow.challenge
+      ? 2
+      : flow.verificationCompleted
+        ? 3
+        : 1
 
   function goToStep(step: number) {
     if (flow.busy || step >= currentStep) return
@@ -158,7 +229,7 @@ function Verify() {
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <nav aria-label="验证步骤" className="mb-8">
           <ol className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
-            {['账号', '签名验证', '完成'].map((label, index) => {
+            {steps.map((label, index) => {
               const step = index + 1
               return (
                 <li
@@ -181,7 +252,7 @@ function Verify() {
                       {step}. {label}
                     </span>
                   )}
-                  {step < 3 ? (
+                  {step < steps.length ? (
                     <span className="ml-3 text-border">/</span>
                   ) : null}
                 </li>
@@ -282,6 +353,14 @@ function Verify() {
                     ).map((label) => (
                       <li key={label}>{label}</li>
                     ))}
+                    <li>
+                      当前优先使用：
+                      {pluginLoginMode === 'proxy'
+                        ? '代理 B 站请求'
+                        : pluginLoginMode === 'direct'
+                          ? '快捷签名登录'
+                          : '仅读取 MID'}
+                    </li>
                   </ul>
                 </div>
               </TooltipContent>
@@ -309,8 +388,7 @@ function Verify() {
             sign={flow.originalSign}
             mid={flow.info.mid}
             onRestore={() => {
-              flow.clearCache()
-              void navigate({ to: '/dashboard' })
+              void navigateToDashboard().catch(() => setLeavingDashboard(false))
             }}
           />
         )}

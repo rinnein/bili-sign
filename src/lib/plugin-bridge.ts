@@ -36,7 +36,12 @@ export class PluginBridge {
   private readonly listeners = new Set<(state: PluginState) => void>()
 
   private readonly onMessage = (event: MessageEvent) => {
-    if (event.source !== window || !isPluginMessage(event.data)) return
+    if (
+      event.source !== window ||
+      event.origin !== window.location.origin ||
+      !isPluginMessage(event.data)
+    )
+      return
     const message = event.data
     if (message.nonce !== this.nonce) return
 
