@@ -44,28 +44,11 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '#/components/ui/dialog'
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from '#/components/ui/empty'
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-  FieldLegend,
-} from '#/components/ui/field'
-import { Checkbox } from '#/components/ui/checkbox'
 import { Input } from '#/components/ui/input'
 import {
   Table,
@@ -75,53 +58,14 @@ import {
   TableHeader,
   TableRow,
 } from '#/components/ui/table'
+import { OAuthClientFormDialog } from '#/components/oauth-client-form-dialog'
+import type {
+  RegisteredOAuthClient,
+  SafeOAuthClient,
+} from '#/components/oauth-client-form-dialog'
 import { appFetch, authClient } from '#/lib/auth-client'
 
 export type ClientListScope = 'mine' | 'all'
-
-export type SafeOAuthClient = {
-  client_id: string
-  user_id?: string
-  client_name?: string
-  client_uri?: string
-  logo_uri?: string
-  redirect_uris: Array<string>
-  scope?: string
-  contacts?: Array<string>
-  tos_uri?: string
-  policy_uri?: string
-  software_id?: string
-  software_version?: string
-  software_statement?: string
-  post_logout_redirect_uris?: Array<string>
-  token_endpoint_auth_method?: string
-  grant_types?: Array<string>
-  response_types?: Array<string>
-  type?: 'web' | 'native' | 'user-agent-based'
-  client_id_issued_at?: number
-  created_at?: string
-  updated_at?: string
-  disabled?: boolean
-  public?: boolean
-}
-
-type ClientEditorValues = {
-  client_name: string
-  client_uri: string
-  logo_uri: string
-  redirect_uris: string
-  scope: string
-  contacts: string
-  tos_uri: string
-  policy_uri: string
-  software_id: string
-  software_version: string
-  software_statement: string
-  post_logout_redirect_uris: string
-  grant_types: Array<string>
-  response_types: Array<string>
-  type: 'web' | 'native' | 'user-agent-based'
-}
 
 const tableFeaturesConfig = tableFeatures({
   columnFilteringFeature,
@@ -139,29 +83,6 @@ const columnHelper = createColumnHelper<
 >()
 
 const EMPTY_CLIENTS: Array<SafeOAuthClient> = []
-const DEFAULT_EDITOR_VALUES: ClientEditorValues = {
-  client_name: '',
-  client_uri: '',
-  logo_uri: '',
-  redirect_uris: '',
-  scope: '',
-  contacts: '',
-  tos_uri: '',
-  policy_uri: '',
-  software_id: '',
-  software_version: '',
-  software_statement: '',
-  post_logout_redirect_uris: '',
-  grant_types: ['authorization_code', 'refresh_token'],
-  response_types: ['code'],
-  type: 'web',
-}
-
-const GRANT_TYPES = [
-  ['authorization_code', 'Authorization Code'],
-  ['client_credentials', 'Client Credentials'],
-  ['refresh_token', 'Refresh Token'],
-] as const
 
 function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
   return {
@@ -197,49 +118,6 @@ function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
   }
 }
 
-function toEditorValues(client: SafeOAuthClient): ClientEditorValues {
-  return {
-    client_name: client.client_name ?? '',
-    client_uri: client.client_uri ?? '',
-    logo_uri: client.logo_uri ?? '',
-    redirect_uris: client.redirect_uris.join('\n'),
-    scope: client.scope ?? '',
-    contacts: client.contacts?.join('\n') ?? '',
-    tos_uri: client.tos_uri ?? '',
-    policy_uri: client.policy_uri ?? '',
-    software_id: client.software_id ?? '',
-    software_version: client.software_version ?? '',
-    software_statement: client.software_statement ?? '',
-    post_logout_redirect_uris:
-      client.post_logout_redirect_uris?.join('\n') ?? '',
-    grant_types: client.grant_types ?? DEFAULT_EDITOR_VALUES.grant_types,
-    response_types:
-      client.response_types ?? DEFAULT_EDITOR_VALUES.response_types,
-    type: client.type ?? DEFAULT_EDITOR_VALUES.type,
-  }
-}
-
-function parseLines(value: string) {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-}
-
-function validateHttpUrls(values: Array<string>, label: string) {
-  for (const value of values) {
-    let parsed: URL
-    try {
-      parsed = new URL(value)
-    } catch {
-      throw new Error(`${label}必须是有效的 URL。`)
-    }
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      throw new Error(`${label}必须使用 HTTP 或 HTTPS。`)
-    }
-  }
-}
-
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
@@ -247,9 +125,15 @@ function errorMessage(error: unknown, fallback: string) {
 export function OAuthClientManager({
   allowScopeSwitch = false,
   refreshKey = 0,
+  createOpen = false,
+  onCreateOpenChange,
+  onCreated,
 }: {
   allowScopeSwitch?: boolean
   refreshKey?: number
+  createOpen?: boolean
+  onCreateOpenChange?: (open: boolean) => void
+  onCreated?: (client: RegisteredOAuthClient) => void
 }) {
   const { data: session } = authClient.useSession()
   const [scope, setScope] = useState<ClientListScope>('mine')
@@ -470,7 +354,7 @@ export function OAuthClientManager({
   }
 
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>已创建的 Client</CardTitle>
@@ -551,7 +435,7 @@ export function OAuthClientManager({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id}>
@@ -661,368 +545,38 @@ export function OAuthClientManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <ClientEditorDialog
-        client={editing}
-        open={Boolean(editing)}
-        onOpenChange={(open) => !open && setEditing(null)}
-        onSaved={(updatedClient) => {
-          setClients((current) =>
-            current.map((client) =>
-              client.client_id === updatedClient.client_id
-                ? { ...client, ...updatedClient }
-                : client,
-            ),
-          )
-          setEditing(null)
-        }}
-      />
+      {editing || createOpen ? (
+        <OAuthClientFormDialog
+          key={`${editing ? 'edit' : 'create'}-${editing?.client_id ?? 'new'}`}
+          mode={editing ? 'edit' : 'create'}
+          client={editing}
+          open={Boolean(editing) || createOpen}
+          onOpenChange={(open) => {
+            if (open) return
+            setEditing(null)
+            onCreateOpenChange?.(false)
+          }}
+          onSaved={(updatedClient) => {
+            const safeClient = toSafeClient(updatedClient)
+            setClients((current) =>
+              current.map((client) =>
+                client.client_id === safeClient.client_id
+                  ? { ...client, ...safeClient }
+                  : client,
+              ),
+            )
+            setEditing(null)
+          }}
+          onCreated={(createdClient) => {
+            onCreated?.(createdClient)
+            setEditing(null)
+            onCreateOpenChange?.(false)
+            setError('')
+            void loadClients()
+          }}
+        />
+      ) : null}
     </Card>
-  )
-}
-
-function ClientEditorDialog({
-  client,
-  open,
-  onOpenChange,
-  onSaved,
-}: {
-  client: SafeOAuthClient | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSaved: (client: SafeOAuthClient) => void
-}) {
-  const [values, setValues] = useState<ClientEditorValues>(
-    DEFAULT_EDITOR_VALUES,
-  )
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!client || !open) return
-    setValues(toEditorValues(client))
-    setError('')
-  }, [client, open])
-
-  function updateValue<Key extends keyof ClientEditorValues>(
-    key: Key,
-    value: ClientEditorValues[Key],
-  ) {
-    setValues((current) => ({ ...current, [key]: value }))
-  }
-
-  function toggleGrantType(value: string) {
-    updateValue(
-      'grant_types',
-      values.grant_types.includes(value)
-        ? values.grant_types.filter((item) => item !== value)
-        : [...values.grant_types, value],
-    )
-  }
-
-  function toggleResponseType(value: string) {
-    updateValue(
-      'response_types',
-      values.response_types.includes(value)
-        ? values.response_types.filter((item) => item !== value)
-        : [...values.response_types, value],
-    )
-  }
-
-  async function save() {
-    if (!client) return
-    setBusy(true)
-    setError('')
-    try {
-      const redirectUris = parseLines(values.redirect_uris)
-      if (redirectUris.length === 0) {
-        throw new Error('至少需要填写一个 OAuth 回调 URL。')
-      }
-      if (!values.response_types.includes('code')) {
-        throw new Error('当前 OAuth provider 必须保留 code response type。')
-      }
-      validateHttpUrls(redirectUris, 'OAuth 回调 URL')
-      const postLogoutRedirectUris = parseLines(
-        values.post_logout_redirect_uris,
-      )
-      if (postLogoutRedirectUris.length > 0) {
-        validateHttpUrls(postLogoutRedirectUris, '退出登录回调 URL')
-      }
-      for (const [value, label] of [
-        [values.client_uri, '应用主页 URL'],
-        [values.logo_uri, 'Logo URL'],
-        [values.tos_uri, '服务条款 URL'],
-        [values.policy_uri, '隐私政策 URL'],
-      ] as const) {
-        if (value.trim()) validateHttpUrls([value.trim()], label)
-      }
-
-      const result = await authClient.oauth2.updateClient({
-        client_id: client.client_id,
-        update: {
-          client_name: values.client_name.trim(),
-          client_uri: values.client_uri.trim(),
-          logo_uri: values.logo_uri.trim(),
-          redirect_uris: redirectUris,
-          scope: values.scope.trim(),
-          contacts: parseLines(values.contacts).length
-            ? parseLines(values.contacts)
-            : undefined,
-          tos_uri: values.tos_uri.trim(),
-          policy_uri: values.policy_uri.trim(),
-          software_id: values.software_id.trim(),
-          software_version: values.software_version.trim(),
-          software_statement: values.software_statement.trim(),
-          post_logout_redirect_uris: postLogoutRedirectUris.length
-            ? postLogoutRedirectUris
-            : undefined,
-          grant_types: values.grant_types as Array<
-            'authorization_code' | 'client_credentials' | 'refresh_token'
-          >,
-          response_types: values.response_types as Array<'code'>,
-          type: values.type,
-        },
-      })
-      if (result.error)
-        throw new Error(result.error.message ?? 'Client 更新失败。')
-      onSaved(toSafeClient(result.data))
-    } catch (saveError) {
-      setError(errorMessage(saveError, 'Client 更新失败。'))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>编辑 OAuth Client</DialogTitle>
-          <DialogDescription>
-            Client ID、Secret 和所有者不可修改。数组字段请每行填写一个值。
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <Alert variant="destructive">
-            <AlertTitle>更新失败</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        ) : null}
-        <FieldGroup className="gap-5">
-          <Field>
-            <FieldLabel htmlFor="oauth-client-name">应用名称</FieldLabel>
-            <Input
-              id="oauth-client-name"
-              value={values.client_name}
-              onChange={(event) =>
-                updateValue('client_name', event.target.value)
-              }
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-uri">应用主页 URL</FieldLabel>
-            <Input
-              id="oauth-client-uri"
-              value={values.client_uri}
-              onChange={(event) =>
-                updateValue('client_uri', event.target.value)
-              }
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-redirect-uris">
-              OAuth 回调 URL
-            </FieldLabel>
-            <textarea
-              id="oauth-client-redirect-uris"
-              value={values.redirect_uris}
-              onChange={(event) =>
-                updateValue('redirect_uris', event.target.value)
-              }
-              disabled={busy}
-              aria-invalid={Boolean(error)}
-              className="min-h-24 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-scope">允许的 Scope</FieldLabel>
-            <Input
-              id="oauth-client-scope"
-              value={values.scope}
-              onChange={(event) => updateValue('scope', event.target.value)}
-              disabled={busy}
-            />
-          </Field>
-          <FieldSet>
-            <FieldLegend>授权能力</FieldLegend>
-            <FieldGroup className="gap-3">
-              {GRANT_TYPES.map(([value, label]) => (
-                <Field key={value} orientation="horizontal">
-                  <Checkbox
-                    checked={values.grant_types.includes(value)}
-                    onCheckedChange={() => toggleGrantType(value)}
-                    disabled={busy}
-                  />
-                  <FieldLabel>{label}</FieldLabel>
-                </Field>
-              ))}
-            </FieldGroup>
-            <FieldDescription>
-              Grant type 可以多选；当前 OAuth provider 只支持 code response
-              type。
-            </FieldDescription>
-          </FieldSet>
-          <FieldSet>
-            <FieldLegend>Response Type</FieldLegend>
-            <Field orientation="horizontal">
-              <Checkbox
-                checked={values.response_types.includes('code')}
-                onCheckedChange={() => toggleResponseType('code')}
-                disabled={busy}
-              />
-              <FieldLabel>code</FieldLabel>
-            </Field>
-            <FieldDescription>
-              保存时必须保留 code，否则 OAuth provider 会拒绝更新。
-            </FieldDescription>
-          </FieldSet>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-type">应用类型</FieldLabel>
-            <select
-              id="oauth-client-type"
-              value={values.type}
-              onChange={(event) =>
-                updateValue(
-                  'type',
-                  event.target.value as ClientEditorValues['type'],
-                )
-              }
-              disabled={busy}
-              className="h-10 border border-input bg-background px-3 text-sm"
-            >
-              <option value="web">Web</option>
-              <option value="native">Native</option>
-              <option value="user-agent-based">User Agent Based</option>
-            </select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-logo-uri">Logo URL</FieldLabel>
-            <Input
-              id="oauth-client-logo-uri"
-              value={values.logo_uri}
-              onChange={(event) => updateValue('logo_uri', event.target.value)}
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-contacts">联系人</FieldLabel>
-            <textarea
-              id="oauth-client-contacts"
-              value={values.contacts}
-              onChange={(event) => updateValue('contacts', event.target.value)}
-              disabled={busy}
-              className="min-h-20 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-post-logout-uris">
-              退出登录回调 URL
-            </FieldLabel>
-            <textarea
-              id="oauth-client-post-logout-uris"
-              value={values.post_logout_redirect_uris}
-              onChange={(event) =>
-                updateValue('post_logout_redirect_uris', event.target.value)
-              }
-              disabled={busy}
-              className="min-h-20 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-tos-uri">服务条款 URL</FieldLabel>
-            <Input
-              id="oauth-client-tos-uri"
-              value={values.tos_uri}
-              onChange={(event) => updateValue('tos_uri', event.target.value)}
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-policy-uri">
-              隐私政策 URL
-            </FieldLabel>
-            <Input
-              id="oauth-client-policy-uri"
-              value={values.policy_uri}
-              onChange={(event) =>
-                updateValue('policy_uri', event.target.value)
-              }
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-software-id">
-              Software ID
-            </FieldLabel>
-            <Input
-              id="oauth-client-software-id"
-              value={values.software_id}
-              onChange={(event) =>
-                updateValue('software_id', event.target.value)
-              }
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-software-version">
-              Software Version
-            </FieldLabel>
-            <Input
-              id="oauth-client-software-version"
-              value={values.software_version}
-              onChange={(event) =>
-                updateValue('software_version', event.target.value)
-              }
-              disabled={busy}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="oauth-client-software-statement">
-              Software Statement
-            </FieldLabel>
-            <textarea
-              id="oauth-client-software-statement"
-              value={values.software_statement}
-              onChange={(event) =>
-                updateValue('software_statement', event.target.value)
-              }
-              disabled={busy}
-              className="min-h-20 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
-            />
-          </Field>
-        </FieldGroup>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => onOpenChange(false)}
-          >
-            取消
-          </Button>
-          <Button type="button" disabled={busy} onClick={() => void save()}>
-            {busy ? (
-              <LoaderCircleIcon
-                className="animate-spin"
-                data-icon="inline-start"
-              />
-            ) : null}
-            保存修改
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 
