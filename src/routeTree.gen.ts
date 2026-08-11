@@ -15,6 +15,7 @@ import { Route as AbuseRouteImport } from './routes/abuse'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DeveloperRouteImport } from './routes/developer'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as ErrorRouteImport } from './routes/error'
 import { Route as InitRouteImport } from './routes/init'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as McpRouteImport } from './routes/mcp'
@@ -59,6 +60,11 @@ const DeveloperRoute = DeveloperRouteImport.update({
 const DocsRoute = DocsRouteImport.update({
   id: '/docs',
   path: '/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ErrorRoute = ErrorRouteImport.update({
+  id: '/error',
+  path: '/error',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InitRoute = InitRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/error': typeof ErrorRoute
   '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/error': typeof ErrorRoute
   '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/developer': typeof DeveloperRoute
   '/docs': typeof DocsRoute
+  '/error': typeof ErrorRoute
   '/init': typeof InitRoute
   '/login': typeof LoginRoute
   '/mcp': typeof McpRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/developer'
     | '/docs'
+    | '/error'
     | '/init'
     | '/login'
     | '/mcp'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/developer'
     | '/docs'
+    | '/error'
     | '/init'
     | '/login'
     | '/mcp'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/developer'
     | '/docs'
+    | '/error'
     | '/init'
     | '/login'
     | '/mcp'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   DeveloperRoute: typeof DeveloperRoute
   DocsRoute: typeof DocsRoute
+  ErrorRoute: typeof ErrorRoute
   InitRoute: typeof InitRoute
   LoginRoute: typeof LoginRoute
   McpRoute: typeof McpRoute
@@ -345,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/docs'
       fullPath: '/docs'
       preLoaderRoute: typeof DocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error': {
+      id: '/error'
+      path: '/error'
+      fullPath: '/error'
+      preLoaderRoute: typeof ErrorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/init': {
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   DeveloperRoute: DeveloperRoute,
   DocsRoute: DocsRoute,
+  ErrorRoute: ErrorRoute,
   InitRoute: InitRoute,
   LoginRoute: LoginRoute,
   McpRoute: McpRoute,
