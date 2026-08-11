@@ -1,5 +1,4 @@
 import { betterAuth } from 'better-auth'
-import { APIError } from 'better-auth/api'
 import { passkey } from '@better-auth/passkey'
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { biliBasic } from 'better-auth-bili-basic/server'
@@ -126,13 +125,9 @@ export const auth = betterAuth({
         page: '/oauth/consent',
         shouldRedirect: () => false,
         consentReferenceId: ({ user }) => {
-          if (isAdminRole(user.role)) {
-            throw new APIError('FORBIDDEN', {
-              error: 'access_denied',
-              error_description: '管理员账户不能授权第三方应用。',
-            })
-          }
-          return undefined
+          return isAdminRole(user.role)
+            ? 'admin-oauth-consent-denied'
+            : undefined
         },
       },
     }),

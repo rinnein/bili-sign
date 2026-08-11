@@ -178,6 +178,21 @@ export const adminBootstrap = {
           }
         }),
       },
+      {
+        matcher: ({ path }: HookEndpointContext) => path === '/oauth2/consent',
+        handler: createAuthMiddleware(async (ctx) => {
+          const body = ctx.body as { accept?: unknown } | undefined
+          if (body?.accept !== true) return
+
+          const session = await getSessionFromCtx(ctx)
+          if (!isAdminRole(session?.user.role)) return
+
+          throw new APIError('FORBIDDEN', {
+            error: 'access_denied',
+            error_description: '管理员账户不能授权第三方应用。',
+          })
+        }),
+      },
     ],
   },
 }

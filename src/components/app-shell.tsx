@@ -13,6 +13,7 @@ import { Link, useLocation } from '@tanstack/react-router'
 
 import { authClient } from '#/lib/auth-client'
 import { isAdminRole, isPendingAdminRole } from '#/lib/admin'
+import { useDeviceSessionSwitcher } from '#/components/device-session-switcher'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import { Button } from '#/components/ui/button'
 import {
@@ -267,50 +268,10 @@ function AccountMenu({ name, image }: { name: string; image?: string | null }) {
   )
 }
 
-type DeviceSession = {
-  session: {
-    token: string
-    userId: string
-  }
-  user: {
-    id: string
-    name: string
-    image?: string | null
-    role?: string | null
-  }
-}
-
 function SessionSwitcher({ currentUserId }: { currentUserId?: string }) {
   const [open, setOpen] = useState(false)
-  const [sessions, setSessions] = useState<Array<DeviceSession>>([])
-  const [loading, setLoading] = useState(false)
-  const [switching, setSwitching] = useState(false)
-  const [error, setError] = useState('')
-
-  async function loadSessions() {
-    setLoading(true)
-    setError('')
-    const result = await authClient.multiSession.listDeviceSessions()
-    if (result.error) {
-      setError('暂时无法读取已登录账户。')
-      setSessions([])
-    } else {
-      setSessions(result.data)
-    }
-    setLoading(false)
-  }
-
-  async function switchSession(sessionToken: string) {
-    setSwitching(true)
-    setError('')
-    const result = await authClient.multiSession.setActive({ sessionToken })
-    if (result.error) {
-      setError('切换账户失败，请重试。')
-      setSwitching(false)
-      return
-    }
-    window.location.reload()
-  }
+  const { sessions, loading, switching, error, loadSessions, switchSession } =
+    useDeviceSessionSwitcher()
 
   return (
     <>

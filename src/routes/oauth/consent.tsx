@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
+import { useDeviceSessionSwitcher } from '#/components/device-session-switcher'
+import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -14,6 +16,7 @@ import {
   CardTitle,
 } from '#/components/ui/card'
 import { authClient } from '#/lib/auth-client'
+import { isAdminRole } from '#/lib/admin'
 import { inspectOAuthContinuation } from '#/lib/oauth-continuation'
 
 export const Route = createFileRoute('/oauth/consent')({
@@ -33,6 +36,15 @@ function OAuthConsent() {
   const [queryReady, setQueryReady] = useState(false)
   const [redirectingToLogin, setRedirectingToLogin] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [sessionListOpen, setSessionListOpen] = useState(false)
+  const {
+    sessions,
+    loading: sessionsLoading,
+    switching: sessionSwitching,
+    error: sessionError,
+    loadSessions,
+    switchSession,
+  } = useDeviceSessionSwitcher()
   const redirectStarted = useRef(false)
 
   useEffect(() => {
@@ -138,6 +150,12 @@ function OAuthConsent() {
       </AppShell>
     )
 
+  const isAdmin = isAdminRole(session.user.role)
+  const toggleSessionList = () => {
+    setSessionListOpen((open) => !open)
+    if (!sessionListOpen) void loadSessions()
+  }
+
   return (
     <AppShell>
       <div className="mx-auto w-full max-w-xl px-4 py-8 sm:px-6 lg:py-10">
@@ -177,8 +195,73 @@ function OAuthConsent() {
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">当前账号</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-muted-foreground">当前授权用户</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={sessionsLoading || sessionSwitching || submitting}
+                    onClick={toggleSessionList}
+                  >
+                    {sessionsLoading ? '正在读取…' : '切换用户'}
+                  </Button>
+                </div>
                 <p className="mt-1 font-medium">{session.user.name}</p>
+                {isAdmin ? (
+                  <Alert className="mt-3" variant="destructive">
+                    <AlertTitle>当前账号不能授权</AlertTitle>
+                    <AlertDescription>
+                      管理员账户不能授权第三方应用。请切换到普通用户后继续，或直接拒绝本次请求。
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {sessionListOpen ? (
+                  <div className="mt-3 grid gap-1 border-y py-2">
+                    {sessionError ? (
+                      <p className="text-xs text-destructive">{sessionError}</p>
+                    ) : sessions.length ? (
+                      sessions.map((item) => (
+                        <button
+                          key={item.session.token}
+                          type="button"
+                          className="flex items-center gap-2 px-2 py-2 text-left text-sm outline-none hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                          disabled={
+                            sessionSwitching || item.user.id === session.user.id
+                          }
+                          onClick={() => void switchSession(item.session.token)}
+                        >
+                          <Avatar className="size-6">
+                            <AvatarImage
+                              src={item.user.image ?? undefined}
+                              alt=""
+                            />
+                            <AvatarFallback>
+                              {item.user.name.slice(0, 1)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="min-w-0 flex-1 truncate">
+                            {item.user.name}
+                          </span>
+                          {isAdminRole(item.user.role) ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              管理员
+                            </span>
+                          ) : null}
+                          {item.user.id === session.user.id ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              当前
+                            </span>
+                          ) : null}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        没有其它已登录账户
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
             <div>
@@ -204,7 +287,7 @@ function OAuthConsent() {
           <CardFooter className="flex-wrap gap-2 border-t">
             <Button
               type="button"
-              disabled={submitting}
+              disabled={submitting || isAdmin}
               onClick={() => void submit(true)}
             >
               <CheckIcon data-icon="inline-start" />
