@@ -33,6 +33,12 @@ import { authClient } from '#/lib/auth-client'
 import { hasAcknowledgedSafetyNotice } from '#/lib/safety-notice'
 import { openBiliSettings } from '#/lib/bili-flow'
 import { useBiliVerification } from '#/features/bili-verification/use-bili-verification'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '#/components/ui/tooltip'
+import { getPluginCapabilityLabels } from '#/lib/plugin-capabilities'
 import { pluginBridge, usePluginBridge } from '#/lib/plugin-bridge'
 import { cn } from '#/lib/utils'
 import {
@@ -255,9 +261,32 @@ function Verify() {
         )}
 
         {pluginState.descriptor && (
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            已连接插件：{pluginState.descriptor.name}
-          </p>
+          <div className="mt-4 flex justify-center text-center text-xs text-muted-foreground">
+            <span>已连接插件：</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="underline decoration-dotted underline-offset-4"
+                  aria-label={`查看 ${pluginState.descriptor.name} 的启用能力`}
+                >
+                  {pluginState.descriptor.name}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" align="center" sideOffset={6}>
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">已启用能力</span>
+                  <ul className="list-disc pl-4">
+                    {getPluginCapabilityLabels(
+                      pluginState.descriptor.capabilities,
+                    ).map((label) => (
+                      <li key={label}>{label}</li>
+                    ))}
+                  </ul>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         )}
 
         {flow.info && flow.challenge && (

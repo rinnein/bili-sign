@@ -74,10 +74,8 @@ export function displayValue(value: unknown, fallback = '') {
 }
 
 export async function getBiliInfo(mid: string): Promise<BiliInfo> {
-  if (
-    typeof window !== 'undefined' &&
-    pluginBridge.hasCapability('bili.api.proxy')
-  ) {
+  const plugin = await pluginBridge.waitUntilReady()
+  if (plugin?.capabilities.includes('bili.api.proxy')) {
     const result = await pluginBridge.request<unknown>(
       'bili.api.proxy',
       'bili.public-info.get',

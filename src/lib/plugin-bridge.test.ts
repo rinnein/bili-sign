@@ -73,6 +73,33 @@ describe('plugin bridge', () => {
     await expect(resultPromise).resolves.toEqual({ mid: '123456' })
   })
 
+  it('waits for the handshake before exposing plugin capabilities', async () => {
+    const { fakeWindow, messages, listeners } = installWindow()
+    const bridge = new PluginBridge()
+    const readyPromise = bridge.waitUntilReady(100)
+    const hello = messages[0]
+
+    listeners[0]({
+      source: fakeWindow,
+      data: {
+        channel: pluginChannel,
+        type: 'bili-sign:ready',
+        protocolVersion: 1,
+        nonce: hello.nonce,
+        plugin: {
+          id: 'example',
+          name: 'Example',
+          version: '1.0.0',
+          capabilities: ['bili.api.proxy'],
+        },
+      },
+    } as unknown as MessageEvent)
+
+    await expect(readyPromise).resolves.toMatchObject({
+      capabilities: ['bili.api.proxy'],
+    })
+  })
+
   it('rejects unsupported capabilities and timed out requests', async () => {
     const { fakeWindow, messages, listeners } = installWindow()
     const bridge = new PluginBridge()

@@ -90,6 +90,31 @@ export class PluginBridge {
     return this.state
   }
 
+  waitUntilReady(timeout = 2_500): Promise<PluginDescriptor | null> {
+    if (typeof window === 'undefined') return Promise.resolve(null)
+    if (this.state.ready) return Promise.resolve(this.state.descriptor)
+
+    this.start()
+    return new Promise((resolve) => {
+      let settled = false
+      let cancelTimer = () => {}
+      const unsubscribe = this.subscribe((state) => {
+        if (state.ready) finish(state.descriptor)
+      })
+      const finish = (descriptor: PluginDescriptor | null) => {
+        if (settled) return
+        settled = true
+        cancelTimer()
+        unsubscribe()
+        resolve(descriptor)
+      }
+
+      const timer = setTimeout(() => finish(null), timeout)
+      cancelTimer = () => clearTimeout(timer)
+      if (this.state.ready) finish(this.state.descriptor)
+    })
+  }
+
   hasCapability(capability: PluginCapability) {
     return this.state.descriptor?.capabilities.includes(capability) ?? false
   }
