@@ -32,7 +32,7 @@ import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'
 import { hasAcknowledgedSafetyNotice } from '#/lib/safety-notice'
 import { openBiliSettings } from '#/lib/bili-flow'
-import { parseBiliNavMid, requestBiliApi } from '#/lib/bili-api-proxy'
+import { requestBiliApi } from '#/lib/bili-api-proxy'
 import { useBiliVerification } from '#/features/bili-verification/use-bili-verification'
 import {
   Tooltip,
@@ -43,6 +43,7 @@ import {
   getEffectivePluginLoginMode,
   getPluginCapabilityLabels,
 } from '#/lib/plugin-capabilities'
+import { readPluginMid } from '#/lib/plugin-mid'
 import { pluginBridge, usePluginBridge } from '#/lib/plugin-bridge'
 import { cn } from '#/lib/utils'
 import {
@@ -94,41 +95,17 @@ function Verify() {
     }
     requestedPluginMid.current = true
     const capabilities = pluginState.descriptor.capabilities
-    const readMid = async () => {
-      try {
-        if (capabilities.includes('bili.api.proxy')) {
-          const result = await requestBiliApi({
-            url: 'https://api.bilibili.com/x/web-interface/nav',
-            method: 'GET',
-          })
-          return parseBiliNavMid(result)
-        }
-        if (capabilities.includes('bili.mid.read')) {
-          const result = await pluginBridge.request<{ mid: string }>(
-            'bili.mid.read',
-            'mid.get',
-            {},
-          )
-          return result.mid
-        }
-      } catch {
-        if (capabilities.includes('bili.mid.read')) {
-          try {
-            const result = await pluginBridge.request<{ mid: string }>(
-              'bili.mid.read',
-              'mid.get',
-              {},
-            )
-            return result.mid
-          } catch {
-            return ''
-          }
-        }
-      }
-      return ''
-    }
-    void readMid().then((value) => {
-      if (/^\d+$/.test(value)) flow.setMid(value)
+    void readPluginMid({
+      capabilities,
+      readWithMid: () =>
+        pluginBridge.request<{ mid: string }>('bili.mid.read', 'mid.get', {}),
+      readWithProxy: () =>
+        requestBiliApi({
+          url: 'https://api.bilibili.com/x/web-interface/nav',
+          method: 'GET',
+        }),
+    }).then((value) => {
+      if (value) flow.setMid(value)
     })
   }, [flow, pluginState.descriptor])
 
@@ -354,12 +331,24 @@ function Verify() {
                       <li key={label}>{label}</li>
                     ))}
                     <li>
-                      当前优先使用：
+                      当前 MID 来源：
+                      {pluginState.descriptor.capabilities.includes(
+                        'bili.mid.read',
+                      )
+                        ? '读取当前 B 站 MID'
+                        : pluginState.descriptor.capabilities.includes(
+                              'bili.api.proxy',
+                            )
+                          ? '代理 B 站当前会话'
+                          : '手动输入'}
+                    </li>
+                    <li>
+                      当前登录方式：
                       {pluginLoginMode === 'proxy'
                         ? '代理 B 站请求'
                         : pluginLoginMode === 'direct'
                           ? '快捷签名登录'
-                          : '仅读取 MID'}
+                          : '手动签名验证'}
                     </li>
                   </ul>
                 </div>
