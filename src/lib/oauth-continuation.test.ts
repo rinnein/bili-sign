@@ -93,4 +93,24 @@ describe('OAuth continuation', () => {
     })
     expect(redirectedTo).toBe('https://client.example/callback?code=1')
   })
+
+  it('notifies the caller before continuation and clears its pending state on failure', async () => {
+    const query = validQuery()
+    const onPending = vi.fn()
+    const onFailure = vi.fn()
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { location: { search: `?${query}`, assign: vi.fn() } },
+    })
+    mockedOAuthContinue.mockResolvedValue({
+      data: null,
+      error: { message: '授权已失效' },
+    })
+
+    await expect(
+      continueOAuthLogin(undefined, { onPending, onFailure }),
+    ).rejects.toThrow('授权已失效')
+    expect(onPending).toHaveBeenCalledTimes(1)
+    expect(onFailure).toHaveBeenCalledTimes(1)
+  })
 })

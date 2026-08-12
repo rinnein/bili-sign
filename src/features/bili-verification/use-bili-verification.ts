@@ -16,7 +16,7 @@ import {
   requestBiliApi,
 } from '#/lib/bili-api-proxy'
 import { readLastMid, rememberMid, resolveMidInput } from '#/lib/mid'
-import { continueOAuthLogin } from '#/lib/oauth-continuation'
+import { useOAuthContinuation } from '#/components/oauth-continuation-provider'
 import { pluginBridge } from '#/lib/plugin-bridge'
 import { getEffectivePluginLoginMode } from '#/lib/plugin-capabilities'
 import {
@@ -77,6 +77,11 @@ export function useBiliVerification({
   refetch: () => Promise<unknown>
   onSessionSwitched?: () => Promise<void> | void
 }) {
+  const {
+    beginOAuthContinuation,
+    cancelOAuthContinuation,
+    continueOAuthLogin,
+  } = useOAuthContinuation()
   const [mid, setMid] = useState(() => {
     const cache = readVerificationCache()
     return cache?.mid || readLastMid()
@@ -532,7 +537,13 @@ export function useBiliVerification({
       throw new Error(result.error.message ?? '验证失败，请检查签名后重试')
     }
 
-    await refetch()
+    const oauthPending = beginOAuthContinuation()
+    try {
+      await refetch()
+    } catch (refetchError) {
+      if (oauthPending) cancelOAuthContinuation()
+      throw refetchError
+    }
     setChallenge(null)
     writeVerificationCache({
       challenge: null,
@@ -553,7 +564,13 @@ export function useBiliVerification({
       throw new Error(result.error.message ?? '验证失败，请检查签名后重试')
     }
 
-    await refetch()
+    const oauthPending = beginOAuthContinuation()
+    try {
+      await refetch()
+    } catch (refetchError) {
+      if (oauthPending) cancelOAuthContinuation()
+      throw refetchError
+    }
     setChallenge(null)
     writeVerificationCache({
       challenge: null,

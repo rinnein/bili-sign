@@ -56,20 +56,20 @@ export const Route = createFileRoute('/verify')({ component: Verify })
 function Verify() {
   const { isPending, refetch } = authClient.useSession()
   const navigate = useNavigate()
-  const flow = useBiliVerification({
-    refetch,
-    onSessionSwitched: () => navigate({ to: '/dashboard' }),
-  })
   const pluginState = usePluginBridge()
   const [agreementChecked, setAgreementChecked] = useState(false)
   const [safetyOpen, setSafetyOpen] = useState(false)
   const [pendingNext, setPendingNext] = useState(false)
-  const [leavingDashboard, setLeavingDashboard] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
   const [nextWaitRemaining, setNextWaitRemaining] = useState(() =>
     getVerificationNextCooldownRemaining(),
   )
   const requestedPluginMid = useRef(false)
   const errorRef = useRef<HTMLDivElement>(null)
+  const flow = useBiliVerification({
+    refetch,
+    onSessionSwitched: navigateToDashboard,
+  })
 
   useEffect(() => {
     setAgreementChecked(hasAcknowledgedSafetyNotice())
@@ -140,23 +140,22 @@ function Verify() {
   }
 
   async function navigateToDashboard() {
-    setLeavingDashboard(true)
-    await navigate({ to: '/dashboard' })
-    flow.clearCache()
+    setIsNavigating(true)
+    try {
+      await navigate({ to: '/dashboard' })
+      flow.clearCache()
+    } catch (error) {
+      setIsNavigating(false)
+      throw error
+    }
   }
 
   async function loginWithPlugin() {
-    setLeavingDashboard(true)
     const success = await flow.loginWithPlugin()
-    if (!success) {
-      setLeavingDashboard(false)
-      return
-    }
+    if (!success) return
     try {
       await navigateToDashboard()
-    } catch {
-      setLeavingDashboard(false)
-    }
+    } catch {}
   }
 
   if (isPending) {
@@ -164,16 +163,6 @@ function Verify() {
       <AppShell>
         <div className="mx-auto w-full max-w-xl px-4 py-20 text-center text-sm text-muted-foreground">
           正在准备验证…
-        </div>
-      </AppShell>
-    )
-  }
-
-  if (leavingDashboard) {
-    return (
-      <AppShell>
-        <div className="mx-auto w-full max-w-xl px-4 py-20 text-center text-sm text-muted-foreground">
-          正在进入账户面板…
         </div>
       </AppShell>
     )
@@ -367,6 +356,7 @@ function Verify() {
               confirmCooldownRemaining={flow.confirmCooldownRemaining}
               directLogin={directLogin}
               pluginName={pluginState.descriptor?.name}
+              isNavigating={isNavigating}
               onConfirm={() => void confirmVerification()}
               onPluginLogin={() => void loginWithPlugin()}
             />
@@ -377,8 +367,9 @@ function Verify() {
             sign={flow.originalSign}
             mid={flow.info.mid}
             onRestore={() => {
-              void navigateToDashboard().catch(() => setLeavingDashboard(false))
+              void navigateToDashboard().catch(() => {})
             }}
+            isNavigating={isNavigating}
           />
         )}
         {flow.error && (
@@ -428,6 +419,7 @@ function ChallengeContent({
   confirmCooldownRemaining,
   directLogin,
   pluginName,
+  isNavigating,
   onConfirm,
   onPluginLogin,
 }: {
@@ -437,6 +429,7 @@ function ChallengeContent({
   confirmCooldownRemaining: number
   directLogin: boolean | undefined
   pluginName?: string
+  isNavigating: boolean
   onConfirm: () => void
   onPluginLogin: () => void
 }) {
@@ -473,10 +466,10 @@ function ChallengeContent({
         <Button
           type="button"
           className="ml-auto"
-          disabled={busy || confirmCooldownRemaining > 0}
+          disabled={busy || isNavigating || confirmCooldownRemaining > 0}
           onClick={directLogin ? onPluginLogin : onConfirm}
         >
-          {busy ? (
+          {busy || isNavigating ? (
             <LoaderCircleIcon
               className="animate-spin"
               data-icon="inline-start"
@@ -486,9 +479,11 @@ function ChallengeContent({
           )}
           {confirmCooldownRemaining > 0
             ? `请等待 ${confirmCooldownRemaining} 秒`
-            : directLogin
-              ? '通过插件登录'
-              : '我已修改'}
+            : isNavigating
+              ? '跳转中…'
+              : directLogin
+                ? '通过插件登录'
+                : '我已修改'}
         </Button>
       </CardFooter>
     </>
@@ -499,10 +494,12 @@ function RestoreCard({
   sign,
   mid,
   onRestore,
+  isNavigating,
 }: {
   sign: string
   mid: string
   onRestore: () => void
+  isNavigating: boolean
 }) {
   return (
     <Card>
@@ -521,9 +518,21 @@ function RestoreCard({
           <ExternalLinkIcon data-icon="inline-start" />
           打开B站个人空间
         </Button>
-        <Button type="button" className="ml-auto" onClick={onRestore}>
-          <RotateCcwIcon data-icon="inline-start" />
-          我已恢复
+        <Button
+          type="button"
+          className="ml-auto"
+          disabled={isNavigating}
+          onClick={onRestore}
+        >
+          {isNavigating ? (
+            <LoaderCircleIcon
+              className="animate-spin"
+              data-icon="inline-start"
+            />
+          ) : (
+            <RotateCcwIcon data-icon="inline-start" />
+          )}
+          {isNavigating ? '跳转中…' : '我已恢复'}
         </Button>
       </CardFooter>
     </Card>

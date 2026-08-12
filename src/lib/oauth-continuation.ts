@@ -16,6 +16,11 @@ export type OAuthContinuation =
       message: string
     }
 
+export type OAuthContinuationCallbacks = {
+  onPending?: () => void
+  onFailure?: () => void
+}
+
 function queryFromSearch(search: string) {
   return search.startsWith('?') ? search.slice(1) : search
 }
@@ -58,7 +63,10 @@ export function inspectOAuthContinuation(search: string): OAuthContinuation {
   }
 }
 
-export async function continueOAuthLogin(oauthQuery?: string) {
+export async function continueOAuthLogin(
+  oauthQuery?: string,
+  callbacks?: OAuthContinuationCallbacks,
+) {
   if (typeof window === 'undefined' && oauthQuery === undefined) return false
 
   const continuation = inspectOAuthContinuation(
@@ -67,14 +75,20 @@ export async function continueOAuthLogin(oauthQuery?: string) {
   if (continuation.kind === 'none') return false
   if (continuation.kind === 'invalid') throw new Error(continuation.message)
 
-  const result = await authClient.oauth2.continue({
-    oauth_query: continuation.query,
-    created: true,
-  })
-  if (result.error) {
-    throw new Error(result.error.message ?? '无法继续授权，请重新发起登录。')
-  }
+  callbacks?.onPending?.()
+  try {
+    const result = await authClient.oauth2.continue({
+      oauth_query: continuation.query,
+      created: true,
+    })
+    if (result.error) {
+      throw new Error(result.error.message ?? '无法继续授权，请重新发起登录。')
+    }
 
-  window.location.assign(result.data.url)
-  return true
+    window.location.assign(result.data.url)
+    return true
+  } catch (error) {
+    callbacks?.onFailure?.()
+    throw error
+  }
 }

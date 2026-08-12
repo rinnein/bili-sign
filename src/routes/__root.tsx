@@ -7,6 +7,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { TooltipProvider } from '#/components/ui/tooltip'
 import { CaptchaDialog } from '#/components/captcha-dialog'
+import { OAuthContinuationProvider } from '#/components/oauth-continuation-provider'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
@@ -51,8 +52,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <TooltipProvider>
-          {children}
-          <CaptchaDialog />
+          <OAuthContinuationProvider>
+            {children}
+            <CaptchaDialog />
+          </OAuthContinuationProvider>
         </TooltipProvider>
         <TanStackDevtools
           config={{

@@ -11,6 +11,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
 import { DeviceQrCode } from '#/components/device-qr-code'
+import { useOAuthContinuation } from '#/components/oauth-continuation-provider'
 import { Alert, AlertDescription, AlertTitle } from '#/components/ui/alert'
 import { Button } from '#/components/ui/button'
 import {
@@ -35,10 +36,7 @@ import {
   deviceAuthErrorCode,
   deviceAuthErrorMessage,
 } from '#/lib/device-auth'
-import {
-  continueOAuthLogin,
-  inspectOAuthContinuation,
-} from '#/lib/oauth-continuation'
+import { inspectOAuthContinuation } from '#/lib/oauth-continuation'
 
 export const Route = createFileRoute('/login')({ component: Login })
 
@@ -65,6 +63,11 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
     refetch,
   } = authClient.useSession()
   const navigate = useNavigate()
+  const {
+    beginOAuthContinuation,
+    cancelOAuthContinuation,
+    continueOAuthLogin,
+  } = useOAuthContinuation()
   const [action, setAction] = useState<LoginAction>(null)
   const [pendingDeviceAuth, setPendingDeviceAuth] =
     useState<PendingDeviceAuth | null>(null)
@@ -75,17 +78,20 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   const oauthContinuationPromise = useRef<Promise<boolean> | null>(null)
   const targetRoute = adminMode ? '/admin/dashboard' : '/dashboard'
 
-  const resumeOAuth = useCallback((oauthQuery?: string) => {
-    if (!oauthContinuationPromise.current) {
-      oauthContinuationPromise.current = continueOAuthLogin(oauthQuery).catch(
-        (continuationError) => {
-          oauthContinuationPromise.current = null
-          throw continuationError
-        },
-      )
-    }
-    return oauthContinuationPromise.current
-  }, [])
+  const resumeOAuth = useCallback(
+    (oauthQuery?: string) => {
+      if (!oauthContinuationPromise.current) {
+        oauthContinuationPromise.current = continueOAuthLogin(oauthQuery).catch(
+          (continuationError) => {
+            oauthContinuationPromise.current = null
+            throw continuationError
+          },
+        )
+      }
+      return oauthContinuationPromise.current
+    },
+    [continueOAuthLogin],
+  )
 
   useEffect(() => {
     if (adminMode || sessionPending || switchingAccount || !session?.user) {
@@ -147,8 +153,14 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
           if (typeof accessToken === 'string' && accessToken) {
             setDeviceSessionToken(accessToken)
           }
+          const oauthPending = !adminMode && beginOAuthContinuation()
           stop()
-          await refetch({ query: { disableCookieCache: true } })
+          try {
+            await refetch({ query: { disableCookieCache: true } })
+          } catch (refetchError) {
+            if (oauthPending) cancelOAuthContinuation()
+            throw refetchError
+          }
           if (!adminMode && (await resumeOAuth())) return
           await navigate({ to: targetRoute })
           return
@@ -199,6 +211,8 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
     }
   }, [
     adminMode,
+    beginOAuthContinuation,
+    cancelOAuthContinuation,
     navigate,
     pendingDeviceAuth,
     refetch,
@@ -221,6 +235,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
   async function signInWithPasskey() {
     setAction('passkey')
     setError('')
+    const oauthPending = !adminMode && beginOAuthContinuation()
     try {
       const result = await authClient.signIn.passkey()
       if (result.error) {
@@ -232,6 +247,7 @@ export function LoginPage({ adminMode = false }: { adminMode?: boolean }) {
       if (!adminMode && (await resumeOAuth())) return
       await navigate({ to: targetRoute })
     } catch (loginError) {
+      if (oauthPending) cancelOAuthContinuation()
       setError(
         deviceAuthErrorMessage(
           loginError,
