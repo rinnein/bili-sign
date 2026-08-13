@@ -7,6 +7,7 @@ import { admin, bearer, captcha, multiSession } from 'better-auth/plugins'
 import { deviceAuthorization } from 'better-auth/plugins/device-authorization'
 import { jwt } from 'better-auth/plugins/jwt'
 import { z } from 'zod'
+import { BiliInfo } from 'better-auth-bili-basic/utils'
 
 import { env } from '#/env'
 import { isAdminRole } from '#/lib/admin'
@@ -17,6 +18,7 @@ import {
 } from '#/lib/device-auth'
 import { turnstileServerEnabled } from '#/lib/turnstile-server'
 import { adminBootstrap } from '#/lib/admin-bootstrap'
+import { mapBiliPublicInfo } from '#/lib/bili-public'
 
 type BiliAccount = {
   accountId: string
@@ -107,6 +109,7 @@ export const auth = betterAuth({
           'name',
           'picture',
           'bili_mid',
+          'bili_level',
         ],
       },
       customUserInfoClaims: async ({ user, scopes }) => {
@@ -119,7 +122,16 @@ export const auth = betterAuth({
           (item) => item.providerId === 'bili-basic',
         )
 
-        return account ? { bili_mid: account.accountId } : {}
+        if (!account) return {}
+        try {
+          const info = mapBiliPublicInfo(
+            await BiliInfo(BigInt(account.accountId)),
+          )
+          return { bili_mid: account.accountId, bili_level: info.level }
+        } catch {
+          // The stable MID remains available if Bilibili's public profile API is unavailable.
+          return { bili_mid: account.accountId }
+        }
       },
       postLogin: {
         page: '/oauth/consent',
