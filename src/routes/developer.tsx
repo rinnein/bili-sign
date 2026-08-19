@@ -1,17 +1,19 @@
-import { CheckCircle2Icon, PlusIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { AppShell } from '#/components/app-shell'
+import { CopyField } from '#/components/copy-field'
 import { OAuthClientManager } from '#/components/oauth-client-manager'
 import { Button } from '#/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '#/components/ui/card'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '#/components/ui/dialog'
 import {
   Empty,
   EmptyDescription,
@@ -112,27 +114,60 @@ function Developer() {
             setRefreshKey((current) => current + 1)
           }}
         />
-        {registeredClient ? (
-          <Card className="mt-6 border-success/40">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2Icon className="size-4 text-success" />
-                Client 创建成功
-              </CardTitle>
-              <CardDescription>
-                请妥善保存下面的 client secret，离开页面后不会再次显示。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm">
-              <Credential
+      </div>
+      <Dialog
+        open={Boolean(registeredClient)}
+        onOpenChange={(open) => {
+          if (!open) setRegisteredClient(null)
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Client 创建成功</DialogTitle>
+            <DialogDescription>
+              请立即保存 Client ID。只有 Confidential Client 会生成
+              secret，离开此窗口后 secret 不会再次显示。
+            </DialogDescription>
+          </DialogHeader>
+          {registeredClient ? (
+            <div className="grid gap-4 text-sm">
+              <CopyCredential
                 label="Client ID"
                 value={registeredClient.client_id}
               />
-              <Credential
-                label="Client secret"
-                value={registeredClient.client_secret ?? '未返回'}
-                secret
-              />
+              {registeredClient.client_secret ? (
+                <CopyCredential
+                  label="Client secret"
+                  value={registeredClient.client_secret}
+                />
+              ) : (
+                <Credential
+                  label="Client secret"
+                  value="Public Client 不生成 secret"
+                />
+              )}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Credential
+                  label="认证方式"
+                  value={
+                    registeredClient.token_endpoint_auth_method === 'none'
+                      ? 'Public / none'
+                      : 'Confidential / client_secret_basic'
+                  }
+                />
+                <Credential
+                  label="PKCE"
+                  value={
+                    registeredClient.require_pkce === false
+                      ? '可选'
+                      : '必需（S256）'
+                  }
+                />
+                <Credential
+                  label="应用类型"
+                  value={registeredClient.application_type ?? 'web'}
+                />
+              </div>
               <Credential
                 label="允许的 scope"
                 value={registeredClient.scope ?? 'openid profile bili:public'}
@@ -141,29 +176,33 @@ function Developer() {
                 label="回调 URL"
                 value={registeredClient.redirect_uris?.join(', ') ?? '—'}
               />
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button type="button" onClick={() => setRegisteredClient(null)}>
+              完成
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   )
 }
 
-function Credential({
-  label,
-  value,
-  secret = false,
-}: {
-  label: string
-  value: string
-  secret?: boolean
-}) {
+function CopyCredential({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <code className={secret ? 'break-all select-all' : 'break-all'}>
-        {value}
-      </code>
+      <CopyField value={value} label={`复制${label}`} />
+    </div>
+  )
+}
+
+function Credential({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <code className="break-all">{value}</code>
     </div>
   )
 }

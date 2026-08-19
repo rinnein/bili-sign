@@ -25,6 +25,7 @@ import { Checkbox } from '#/components/ui/checkbox'
 import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'
 import {
+  getOAuthClientAuthMethod,
   normalizeOAuthGrantTypes,
   parseOAuthClientLines,
   toOAuthClientRequestValues,
@@ -51,21 +52,43 @@ export type SafeOAuthClient = {
   grant_types?: Array<string>
   response_types?: Array<string>
   application_type?: 'web' | 'native'
+  require_pkce?: boolean
   client_id_issued_at?: number
   created_at?: string
   updated_at?: string
   disabled?: boolean
-  public?: boolean
 }
 
 export type RegisteredOAuthClient = {
   client_id: string
   client_secret?: string
   client_secret_expires_at?: number
+  token_endpoint_auth_method?: string
+  application_type?: 'web' | 'native'
+  require_pkce?: boolean
   client_name?: string
   client_uri?: string
   redirect_uris?: Array<string>
   scope?: string
+}
+
+function toRegisteredOAuthClient(value: OAuthClient): RegisteredOAuthClient {
+  const client = value as OAuthClient & {
+    application_type?: 'web' | 'native'
+    require_pkce?: boolean
+  }
+  return {
+    client_id: client.client_id,
+    client_secret: client.client_secret,
+    client_secret_expires_at: client.client_secret_expires_at,
+    token_endpoint_auth_method: client.token_endpoint_auth_method,
+    application_type: client.application_type,
+    require_pkce: client.require_pkce ?? true,
+    client_name: client.client_name,
+    client_uri: client.client_uri,
+    redirect_uris: client.redirect_uris,
+    scope: client.scope,
+  }
 }
 
 const DEFAULT_FORM_VALUES: OAuthClientFormValues = {
@@ -84,6 +107,7 @@ const DEFAULT_FORM_VALUES: OAuthClientFormValues = {
   grant_types: ['authorization_code', 'refresh_token'],
   response_types: ['code'],
   application_type: 'web',
+  token_endpoint_auth_method: 'none',
 }
 
 const GRANT_TYPES = [
@@ -94,6 +118,11 @@ const GRANT_TYPES = [
 const TYPE_OPTIONS = [
   ['web', 'Web'],
   ['native', 'Native'],
+] as const
+
+const CLIENT_AUTH_OPTIONS = [
+  ['client_secret_basic', 'Confidential（client secret）'],
+  ['none', 'Public（无 client secret，必须使用 PKCE）'],
 ] as const
 
 function errorMessage(error: unknown, fallback: string) {
@@ -122,6 +151,10 @@ function toFormValues(client?: SafeOAuthClient | null): OAuthClientFormValues {
     response_types: client.response_types ?? DEFAULT_FORM_VALUES.response_types,
     application_type:
       client.application_type ?? DEFAULT_FORM_VALUES.application_type,
+    token_endpoint_auth_method: getOAuthClientAuthMethod(
+      client.token_endpoint_auth_method,
+      client.application_type ?? DEFAULT_FORM_VALUES.application_type,
+    ),
   }
 }
 
@@ -181,15 +214,12 @@ export function OAuthClientFormDialog({
         if (mode === 'create') {
           const result = await authClient.oauth2.register({
             ...requestValues,
-            token_endpoint_auth_method:
-              requestValues.application_type === 'native'
-                ? 'none'
-                : 'client_secret_basic',
+            token_endpoint_auth_method: value.token_endpoint_auth_method,
           })
           if (result.error) {
             throw new Error(result.error.message ?? 'Client 创建失败。')
           }
-          onCreated(result.data)
+          onCreated(toRegisteredOAuthClient(result.data))
           onOpenChange(false)
           return
         }
@@ -222,15 +252,15 @@ export function OAuthClientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-5xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b p-6">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             Client ID、Secret 和所有者不可修改。数组字段请每行填写一个值。
           </DialogDescription>
         </DialogHeader>
         {submitError ? (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="mx-6 mt-4 shrink-0">
             <AlertTitle>
               {mode === 'create' ? '创建失败' : '更新失败'}
             </AlertTitle>
@@ -238,290 +268,339 @@ export function OAuthClientFormDialog({
           </Alert>
         ) : null}
         <form
-          className="grid gap-5"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
           onSubmit={(event) => {
             event.preventDefault()
             void form.handleSubmit()
           }}
         >
-          <FieldGroup className="gap-5">
-            <form.Field
-              name="client_name"
-              validators={{
-                onSubmit: ({ value }) =>
-                  mode === 'create' && !value.trim()
-                    ? '请填写应用名称。'
-                    : undefined,
-              }}
-            >
-              {(field) => (
-                <Field data-invalid={field.state.meta.errors.length > 0}>
-                  <FieldLabel htmlFor="oauth-client-name">
-                    <LabelWithRequirement required={mode === 'create'}>
-                      应用名称
-                    </LabelWithRequirement>
-                  </FieldLabel>
-                  <Input
-                    id="oauth-client-name"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={form.state.isSubmitting}
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldValidation errors={field.state.meta.errors} />
-                </Field>
-              )}
-            </form.Field>
-            <form.Field
-              name="client_uri"
-              validators={{
-                onSubmit: ({ value }) =>
-                  mode === 'create' && !value.trim()
-                    ? '请填写应用主页 URL。'
-                    : undefined,
-              }}
-            >
-              {(field) => (
-                <Field data-invalid={field.state.meta.errors.length > 0}>
-                  <FieldLabel htmlFor="oauth-client-uri">
-                    <LabelWithRequirement required={mode === 'create'}>
-                      应用主页 URL
-                    </LabelWithRequirement>
-                  </FieldLabel>
-                  <Input
-                    id="oauth-client-uri"
-                    type="url"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={form.state.isSubmitting}
-                    aria-invalid={field.state.meta.errors.length > 0}
-                  />
-                  <FieldValidation errors={field.state.meta.errors} />
-                </Field>
-              )}
-            </form.Field>
-            <form.Field
-              name="redirect_uris"
-              validators={{
-                onSubmit: ({ value }) =>
-                  parseOAuthClientLines(value).length
-                    ? undefined
-                    : '至少需要填写一个 OAuth 回调 URL。',
-              }}
-            >
-              {(field) => (
-                <Field data-invalid={field.state.meta.errors.length > 0}>
-                  <FieldLabel htmlFor="oauth-client-redirect-uris">
-                    <LabelWithRequirement required>
-                      OAuth 回调 URL
-                    </LabelWithRequirement>
-                  </FieldLabel>
-                  <textarea
-                    id="oauth-client-redirect-uris"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={form.state.isSubmitting}
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    className="min-h-24 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
-                  />
-                  <FieldDescription>每行填写一个回调地址。</FieldDescription>
-                  <FieldValidation errors={field.state.meta.errors} />
-                </Field>
-              )}
-            </form.Field>
-            <form.Field name="scope">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="oauth-client-scope">
-                    <LabelWithRequirement>允许的 Scope</LabelWithRequirement>
-                  </FieldLabel>
-                  <Input
-                    id="oauth-client-scope"
-                    value={field.state.value}
-                    onChange={(event) => field.handleChange(event.target.value)}
-                    onBlur={field.handleBlur}
-                    disabled={form.state.isSubmitting}
-                  />
-                </Field>
-              )}
-            </form.Field>
-            <form.Field name="grant_types">
-              {(field) => (
-                <FieldSet>
-                  <FieldLegend>
-                    <LabelWithRequirement>授权能力</LabelWithRequirement>
-                  </FieldLegend>
-                  <FieldGroup className="gap-3">
-                    {GRANT_TYPES.map(([value, label]) => (
-                      <Field key={value} orientation="horizontal">
-                        <Checkbox
-                          checked={field.state.value.includes(value)}
-                          onCheckedChange={(checked) =>
-                            field.handleChange(
-                              checked
-                                ? [...field.state.value, value]
-                                : field.state.value.filter(
-                                    (item: string) => item !== value,
-                                  ),
-                            )
-                          }
-                          disabled={form.state.isSubmitting}
-                        />
-                        <FieldLabel>{label}</FieldLabel>
-                      </Field>
-                    ))}
-                  </FieldGroup>
-                  <FieldDescription>Grant type 可以多选。</FieldDescription>
-                </FieldSet>
-              )}
-            </form.Field>
-            <form.Field name="response_types">
-              {(field) => (
-                <FieldSet>
-                  <FieldLegend>
-                    <LabelWithRequirement>Response Type</LabelWithRequirement>
-                  </FieldLegend>
-                  <Field orientation="horizontal">
-                    <Checkbox
-                      checked={field.state.value.includes('code')}
-                      onCheckedChange={(checked) =>
-                        field.handleChange(checked ? ['code'] : [])
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+            <FieldGroup className="gap-5">
+              <form.Field
+                name="client_name"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    mode === 'create' && !value.trim()
+                      ? '请填写应用名称。'
+                      : undefined,
+                }}
+              >
+                {(field) => (
+                  <Field data-invalid={field.state.meta.errors.length > 0}>
+                    <FieldLabel htmlFor="oauth-client-name">
+                      <LabelWithRequirement required={mode === 'create'}>
+                        应用名称
+                      </LabelWithRequirement>
+                    </FieldLabel>
+                    <Input
+                      id="oauth-client-name"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
                       }
+                      onBlur={field.handleBlur}
+                      disabled={form.state.isSubmitting}
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldValidation errors={field.state.meta.errors} />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field
+                name="client_uri"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    mode === 'create' && !value.trim()
+                      ? '请填写应用主页 URL。'
+                      : undefined,
+                }}
+              >
+                {(field) => (
+                  <Field data-invalid={field.state.meta.errors.length > 0}>
+                    <FieldLabel htmlFor="oauth-client-uri">
+                      <LabelWithRequirement required={mode === 'create'}>
+                        应用主页 URL
+                      </LabelWithRequirement>
+                    </FieldLabel>
+                    <Input
+                      id="oauth-client-uri"
+                      type="url"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      disabled={form.state.isSubmitting}
+                      aria-invalid={field.state.meta.errors.length > 0}
+                    />
+                    <FieldValidation errors={field.state.meta.errors} />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field
+                name="redirect_uris"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    parseOAuthClientLines(value).length
+                      ? undefined
+                      : '至少需要填写一个 OAuth 回调 URL。',
+                }}
+              >
+                {(field) => (
+                  <Field data-invalid={field.state.meta.errors.length > 0}>
+                    <FieldLabel htmlFor="oauth-client-redirect-uris">
+                      <LabelWithRequirement required>
+                        OAuth 回调 URL
+                      </LabelWithRequirement>
+                    </FieldLabel>
+                    <textarea
+                      id="oauth-client-redirect-uris"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
+                      disabled={form.state.isSubmitting}
+                      aria-invalid={field.state.meta.errors.length > 0}
+                      className="min-h-24 w-full border border-transparent border-b-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-b-ring"
+                    />
+                    <FieldDescription>每行填写一个回调地址。</FieldDescription>
+                    <FieldValidation errors={field.state.meta.errors} />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="scope">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="oauth-client-scope">
+                      <LabelWithRequirement>允许的 Scope</LabelWithRequirement>
+                    </FieldLabel>
+                    <Input
+                      id="oauth-client-scope"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      onBlur={field.handleBlur}
                       disabled={form.state.isSubmitting}
                     />
-                    <FieldLabel>code</FieldLabel>
                   </Field>
-                  <FieldDescription>
-                    当前 OAuth provider 必须保留 code。
-                  </FieldDescription>
-                </FieldSet>
-              )}
-            </form.Field>
-            <form.Field name="application_type">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="oauth-client-application-type">
-                    <LabelWithRequirement>应用类型</LabelWithRequirement>
-                  </FieldLabel>
-                  <select
-                    id="oauth-client-application-type"
+                )}
+              </form.Field>
+              <form.Field name="grant_types">
+                {(field) => (
+                  <FieldSet>
+                    <FieldLegend>
+                      <LabelWithRequirement>授权能力</LabelWithRequirement>
+                    </FieldLegend>
+                    <FieldGroup className="gap-3">
+                      {GRANT_TYPES.map(([value, label]) => (
+                        <Field key={value} orientation="horizontal">
+                          <Checkbox
+                            checked={field.state.value.includes(value)}
+                            onCheckedChange={(checked) =>
+                              field.handleChange(
+                                checked
+                                  ? [...field.state.value, value]
+                                  : field.state.value.filter(
+                                      (item: string) => item !== value,
+                                    ),
+                              )
+                            }
+                            disabled={form.state.isSubmitting}
+                          />
+                          <FieldLabel>{label}</FieldLabel>
+                        </Field>
+                      ))}
+                    </FieldGroup>
+                    <FieldDescription>Grant type 可以多选。</FieldDescription>
+                  </FieldSet>
+                )}
+              </form.Field>
+              <form.Field name="response_types">
+                {(field) => (
+                  <FieldSet>
+                    <FieldLegend>
+                      <LabelWithRequirement>Response Type</LabelWithRequirement>
+                    </FieldLegend>
+                    <Field orientation="horizontal">
+                      <Checkbox
+                        checked={field.state.value.includes('code')}
+                        onCheckedChange={(checked) =>
+                          field.handleChange(checked ? ['code'] : [])
+                        }
+                        disabled={form.state.isSubmitting}
+                      />
+                      <FieldLabel>code</FieldLabel>
+                    </Field>
+                    <FieldDescription>
+                      当前 OAuth provider 必须保留 code。
+                    </FieldDescription>
+                  </FieldSet>
+                )}
+              </form.Field>
+              <form.Field name="application_type">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="oauth-client-application-type">
+                      <LabelWithRequirement>应用类型</LabelWithRequirement>
+                    </FieldLabel>
+                    <select
+                      id="oauth-client-application-type"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(
+                          () =>
+                            event.target
+                              .value as OAuthClientFormValues['application_type'],
+                        )
+                      }
+                      disabled={form.state.isSubmitting}
+                      className="h-10 border border-input bg-background px-3 text-sm"
+                    >
+                      {TYPE_OPTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldDescription>
+                      Web 类型需要 HTTPS 回调；HTTP localhost、127.0.0.1 或
+                      [::1] 会按 Native Client 注册。
+                    </FieldDescription>
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="token_endpoint_auth_method">
+                {(field) => (
+                  <Field>
+                    <FieldLabel htmlFor="oauth-client-auth-method">
+                      <LabelWithRequirement>
+                        客户端认证方式
+                      </LabelWithRequirement>
+                    </FieldLabel>
+                    <select
+                      id="oauth-client-auth-method"
+                      value={field.state.value}
+                      onChange={(event) =>
+                        field.handleChange(
+                          () =>
+                            event.target
+                              .value as OAuthClientFormValues['token_endpoint_auth_method'],
+                        )
+                      }
+                      disabled={form.state.isSubmitting || mode === 'edit'}
+                      className="h-10 border border-input bg-background px-3 text-sm"
+                    >
+                      {CLIENT_AUTH_OPTIONS.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                    <FieldDescription>
+                      Public Client 不发送 client_secret，授权码换 token
+                      时必须提供 S256 PKCE 的 code_verifier；当前服务固定要求
+                      PKCE。
+                    </FieldDescription>
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="logo_uri">
+                {(field) => (
+                  <TextField
+                    id="oauth-client-logo-uri"
+                    label="Logo URL"
                     value={field.state.value}
-                    onChange={(event) =>
-                      field.handleChange(
-                        () =>
-                          event.target
-                            .value as OAuthClientFormValues['application_type'],
-                      )
-                    }
                     disabled={form.state.isSubmitting}
-                    className="h-10 border border-input bg-background px-3 text-sm"
-                  >
-                    {TYPE_OPTIONS.map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-            </form.Field>
-            <form.Field name="logo_uri">
-              {(field) => (
-                <TextField
-                  id="oauth-client-logo-uri"
-                  label="Logo URL"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="contacts">
-              {(field) => (
-                <TextAreaField
-                  id="oauth-client-contacts"
-                  label="联系人"
-                  description="每行填写一个联系人。"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="post_logout_redirect_uris">
-              {(field) => (
-                <TextAreaField
-                  id="oauth-client-post-logout-uris"
-                  label="退出登录回调 URL"
-                  description="每行填写一个地址；留空表示不发送。"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="tos_uri">
-              {(field) => (
-                <TextField
-                  id="oauth-client-tos-uri"
-                  label="服务条款 URL"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="policy_uri">
-              {(field) => (
-                <TextField
-                  id="oauth-client-policy-uri"
-                  label="隐私政策 URL"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="software_id">
-              {(field) => (
-                <TextField
-                  id="oauth-client-software-id"
-                  label="Software ID"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="software_version">
-              {(field) => (
-                <TextField
-                  id="oauth-client-software-version"
-                  label="Software Version"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-            <form.Field name="software_statement">
-              {(field) => (
-                <TextAreaField
-                  id="oauth-client-software-statement"
-                  label="Software Statement"
-                  value={field.state.value}
-                  disabled={form.state.isSubmitting}
-                  onChange={(value) => field.handleChange(value)}
-                />
-              )}
-            </form.Field>
-          </FieldGroup>
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="contacts">
+                {(field) => (
+                  <TextAreaField
+                    id="oauth-client-contacts"
+                    label="联系人"
+                    description="每行填写一个联系人。"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="post_logout_redirect_uris">
+                {(field) => (
+                  <TextAreaField
+                    id="oauth-client-post-logout-uris"
+                    label="退出登录回调 URL"
+                    description="每行填写一个地址；留空表示不发送。"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="tos_uri">
+                {(field) => (
+                  <TextField
+                    id="oauth-client-tos-uri"
+                    label="服务条款 URL"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="policy_uri">
+                {(field) => (
+                  <TextField
+                    id="oauth-client-policy-uri"
+                    label="隐私政策 URL"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="software_id">
+                {(field) => (
+                  <TextField
+                    id="oauth-client-software-id"
+                    label="Software ID"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="software_version">
+                {(field) => (
+                  <TextField
+                    id="oauth-client-software-version"
+                    label="Software Version"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+              <form.Field name="software_statement">
+                {(field) => (
+                  <TextAreaField
+                    id="oauth-client-software-statement"
+                    label="Software Statement"
+                    value={field.state.value}
+                    disabled={form.state.isSubmitting}
+                    onChange={(value) => field.handleChange(value)}
+                  />
+                )}
+              </form.Field>
+            </FieldGroup>
+          </div>
           <form.Subscribe selector={(state) => state.isSubmitting}>
             {(isSubmitting) => (
-              <DialogFooter>
+              <DialogFooter className="shrink-0 border-t bg-popover px-6 py-4">
                 <Button
                   type="button"
                   variant="outline"

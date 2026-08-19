@@ -121,6 +121,14 @@ function Docs() {
                 </Link>
                 填写应用名称、主页 URL 和 OAuth 回调 URL。
               </p>
+              <p>
+                本地 HTTP 回调请选择 Native 类型，并使用
+                <code>http://localhost</code>、<code>http://127.0.0.1</code> 或
+                <code>http://[::1]</code>。浏览器应用通常应选择 Public
+                Client（认证方式
+                <code>none</code>），授权码换 token 时提交 S256 PKCE 的
+                <code>code_verifier</code>；线上 Web 类型则使用 HTTPS。
+              </p>
               <pre className="overflow-x-auto border bg-muted p-4 text-xs leading-6">
                 <code>
                   {[

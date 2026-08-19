@@ -42,6 +42,7 @@ export interface AuthDatabase {
     grantTypes: Array<string> | null
     responseTypes: Array<string> | null
     applicationType: 'web' | 'native' | null
+    requirePKCE: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
     disabled: boolean | null

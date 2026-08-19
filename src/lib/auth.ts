@@ -99,6 +99,7 @@ export const auth = betterAuth({
       clientRegistrationDefaultScopes: ['openid', 'profile', 'bili:public'],
       clientRegistrationAllowedScopes: ['openid', 'profile', 'bili:public'],
       clientRegistrationClientSecretExpiration: '1 year',
+      clientRegistrationRequirePKCE: true,
       grantTypes: ['authorization_code', 'refresh_token'],
       loginPage: '/login',
       consentPage: '/oauth/consent',

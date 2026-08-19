@@ -105,6 +105,7 @@ function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
     grant_types: value.grant_types ?? undefined,
     response_types: value.response_types ?? undefined,
     application_type: extra.application_type,
+    require_pkce: extra.require_pkce,
     client_id_issued_at: value.client_id_issued_at,
     created_at:
       typeof extra.created_at === 'string'
@@ -115,7 +116,6 @@ function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
     updated_at:
       typeof extra.updated_at === 'string' ? extra.updated_at : undefined,
     disabled: value.disabled,
-    public: extra.public,
   }
 }
 

@@ -14,6 +14,7 @@ export type OAuthClientFormValues = {
   grant_types: Array<OAuthGrantType>
   response_types: Array<string>
   application_type: 'web' | 'native'
+  token_endpoint_auth_method: 'none' | 'client_secret_basic'
 }
 
 export type OAuthGrantType = 'authorization_code' | 'refresh_token'
@@ -69,6 +70,18 @@ function resolveApplicationType(
     return parsed.protocol === 'http:' && isLoopbackHostname(parsed.hostname)
   })
   return hasHttpLoopbackRedirect ? 'native' : applicationType
+}
+
+function normalizeTokenEndpointAuthMethod(value?: string) {
+  return value === 'none' ? 'none' : 'client_secret_basic'
+}
+
+export function getOAuthClientAuthMethod(
+  value: string | undefined,
+  applicationType: OAuthClientFormValues['application_type'],
+) {
+  if (value) return normalizeTokenEndpointAuthMethod(value)
+  return applicationType === 'native' ? 'none' : 'client_secret_basic'
 }
 
 function validateRedirectUriPolicy(

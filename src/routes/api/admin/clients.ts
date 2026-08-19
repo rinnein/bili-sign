@@ -22,6 +22,7 @@ type SafeClient = {
   grant_types?: Array<string>
   response_types?: Array<string>
   application_type?: 'web' | 'native'
+  require_pkce?: boolean
   client_id_issued_at?: number
   created_at?: string
   updated_at?: string
@@ -47,6 +48,7 @@ type OAuthClientRecord = {
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
   applicationType: 'web' | 'native' | null
+  requirePKCE: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
@@ -71,6 +73,7 @@ function toSafeClient(client: {
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
   applicationType: 'web' | 'native' | null
+  requirePKCE: boolean | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
@@ -94,6 +97,7 @@ function toSafeClient(client: {
     grant_types: client.grantTypes ?? undefined,
     response_types: client.responseTypes ?? undefined,
     application_type: client.applicationType ?? undefined,
+    require_pkce: client.requirePKCE ?? undefined,
     client_id_issued_at: client.createdAt
       ? Math.floor(client.createdAt.getTime() / 1000)
       : undefined,
@@ -153,6 +157,7 @@ export const Route = createFileRoute('/api/admin/clients')({
             'grantTypes',
             'responseTypes',
             'applicationType',
+            'requirePKCE',
             'createdAt',
             'updatedAt',
             'disabled',

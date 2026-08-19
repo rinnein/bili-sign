@@ -24,6 +24,7 @@ const baseValues: OAuthClientFormValues = {
   grant_types: ['authorization_code', 'refresh_token'],
   response_types: ['code'],
   application_type: 'web',
+  token_endpoint_auth_method: 'none',
 }
 
 describe('OAuth client form helpers', () => {
@@ -64,7 +65,7 @@ describe('OAuth client form helpers', () => {
     expect(request.application_type).toBe('web')
   })
 
-  it('uses a public native client for HTTP loopback redirects', () => {
+  it('uses a native client for HTTP loopback redirects', () => {
     const values = {
       ...baseValues,
       redirect_uris: 'http://localhost:3000/callback',
@@ -72,6 +73,18 @@ describe('OAuth client form helpers', () => {
     expect(validateOAuthClientFormValues(values, 'create')).toBeNull()
     expect(toOAuthClientRequestValues(values, 'create').application_type).toBe(
       'native',
+    )
+  })
+
+  it('keeps public authentication independent from application type', () => {
+    const values = {
+      ...baseValues,
+      token_endpoint_auth_method: 'none' as const,
+    }
+    expect(validateOAuthClientFormValues(values, 'create')).toBeNull()
+    expect(values.token_endpoint_auth_method).toBe('none')
+    expect(toOAuthClientRequestValues(values, 'create').application_type).toBe(
+      'web',
     )
   })
 
