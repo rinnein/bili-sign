@@ -8,12 +8,10 @@ import {
   UserRoundIcon,
   BadgeCheckIcon,
 } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 
-import { authClient } from '#/lib/auth-client'
-import { isAdminRole, isPendingAdminRole } from '#/lib/admin'
-import { useDeviceSessionSwitcher } from '#/components/device-session-switcher'
+import { getUserRole, isAdminRole, isPendingAdminRole } from '#/lib/admin'
 import { Avatar, AvatarFallback, AvatarImage } from '#/components/ui/avatar'
 import { Button } from '#/components/ui/button'
 import {
@@ -39,7 +37,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '#/components/ui/sheet'
+import { sessionClient } from '#/lib/session-client'
 import { cn } from '#/lib/utils'
+
+const SessionSwitcher = lazy(() => import('#/components/session-switcher'))
 
 const links = [
   { to: '/verify' as const, label: '验证账号', icon: BadgeCheckIcon },
@@ -49,10 +50,10 @@ const links = [
 ]
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data: session } = authClient.useSession()
+  const { data: session } = sessionClient.useSession()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const pendingAdmin = isPendingAdminRole(session?.user.role)
+  const pendingAdmin = isPendingAdminRole(getUserRole(session?.user))
   const visibleLinks = pendingAdmin
     ? links.filter(({ to }) => to === '/docs')
     : links
@@ -97,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               )}
-              {session?.user && isAdminRole(session.user.role) && (
+              {session?.user && isAdminRole(getUserRole(session.user)) && (
                 <NavigationMenuItem>
                   <NavigationMenuLink
                     asChild
@@ -188,7 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </Link>
                     </SheetClose>
                   )}
-                  {session?.user && isAdminRole(session.user.role) && (
+                  {session?.user && isAdminRole(getUserRole(session.user)) && (
                     <SheetClose asChild>
                       <Link
                         to="/admin/dashboard"
@@ -228,8 +229,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function AccountMenu({ name, image }: { name: string; image?: string | null }) {
-  const { data: session } = authClient.useSession()
-  const pendingAdmin = isPendingAdminRole(session?.user.role)
+  const { data: session } = sessionClient.useSession()
+  const pendingAdmin = isPendingAdminRole(getUserRole(session?.user))
 
   return (
     <DropdownMenu>
@@ -254,78 +255,18 @@ function AccountMenu({ name, image }: { name: string; image?: string | null }) {
             <DropdownMenuItem asChild>
               <Link to="/dashboard">账户面板</Link>
             </DropdownMenuItem>
-            <SessionSwitcher currentUserId={session?.user.id} />
+            <Suspense fallback={null}>
+              <SessionSwitcher currentUserId={session?.user.id} />
+            </Suspense>
           </>
         )}
         <DropdownMenuItem asChild>
           <Link to="/login">登录其它账户</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => void authClient.signOut()}>
+        <DropdownMenuItem onClick={() => void sessionClient.signOut()}>
           退出登录
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-function SessionSwitcher({ currentUserId }: { currentUserId?: string }) {
-  const [open, setOpen] = useState(false)
-  const { sessions, loading, switching, error, loadSessions, switchSession } =
-    useDeviceSessionSwitcher()
-
-  return (
-    <>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel>切换账户</DropdownMenuLabel>
-      <DropdownMenuItem
-        onSelect={(event) => {
-          event.preventDefault()
-          setOpen((value) => !value)
-          if (!open) void loadSessions()
-        }}
-        disabled={loading || switching}
-      >
-        {loading ? '正在读取…' : '查看已登录账户'}
-      </DropdownMenuItem>
-      {open ? (
-        <div className="max-h-48 overflow-y-auto px-1 pb-1">
-          {error ? (
-            <p className="px-2 py-2 text-xs text-destructive">{error}</p>
-          ) : sessions.length ? (
-            sessions.map((item) => (
-              <button
-                key={item.session.token}
-                type="button"
-                className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-                disabled={switching || item.user.id === currentUserId}
-                onClick={() => void switchSession(item.session.token)}
-              >
-                <Avatar className="size-6">
-                  <AvatarImage src={item.user.image ?? undefined} alt="" />
-                  <AvatarFallback>{item.user.name.slice(0, 1)}</AvatarFallback>
-                </Avatar>
-                <span className="min-w-0 flex-1 truncate">
-                  {item.user.name}
-                </span>
-                {isAdminRole(item.user.role) ? (
-                  <span className="text-[10px] text-muted-foreground">
-                    管理员
-                  </span>
-                ) : null}
-                {item.user.id === currentUserId ? (
-                  <span className="text-[10px] text-muted-foreground">
-                    当前
-                  </span>
-                ) : null}
-              </button>
-            ))
-          ) : (
-            <p className="px-2 py-2 text-xs text-muted-foreground">
-              没有其它已登录账户
-            </p>
-          )}
-        </div>
-      ) : null}
-    </>
   )
 }

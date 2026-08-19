@@ -1,5 +1,3 @@
-import { authClient } from '#/lib/auth-client'
-
 export type OAuthSearch = Record<string, string>
 
 export type OAuthContinuation =
@@ -77,6 +75,7 @@ export async function continueOAuthLogin(
 
   callbacks?.onPending?.()
   try {
+    const { authClient } = await import('#/lib/auth-client')
     const result = await authClient.oauth2.continue({
       oauth_query: continuation.query,
       created: true,
