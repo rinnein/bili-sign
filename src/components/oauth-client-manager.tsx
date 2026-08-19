@@ -104,7 +104,7 @@ function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
     token_endpoint_auth_method: value.token_endpoint_auth_method ?? undefined,
     grant_types: value.grant_types ?? undefined,
     response_types: value.response_types ?? undefined,
-    type: extra.type,
+    application_type: extra.application_type,
     client_id_issued_at: value.client_id_issued_at,
     created_at:
       typeof extra.created_at === 'string'

@@ -110,7 +110,7 @@ function assertReciprocalGrantTypes(row: OAuthClientRow) {
 
   if (grantTypes.includes('client_credentials')) {
     throw new Error(
-      `OAuth client ${row.clientId} uses client_credentials. Assign approved client_credentials scopes manually before retrying.`,
+      `OAuth client ${row.clientId} uses the unsupported client_credentials grant. Remove it from grant_types before retrying.`,
     )
   }
 }

@@ -21,12 +21,11 @@ type SafeClient = {
   token_endpoint_auth_method?: string
   grant_types?: Array<string>
   response_types?: Array<string>
-  type?: string
+  application_type?: 'web' | 'native'
   client_id_issued_at?: number
   created_at?: string
   updated_at?: string
   disabled?: boolean
-  public?: boolean
 }
 
 type OAuthClientRecord = {
@@ -47,11 +46,10 @@ type OAuthClientRecord = {
   scopes: Array<string> | null
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
-  type: string | null
+  applicationType: 'web' | 'native' | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
-  public: boolean | null
 }
 
 function toSafeClient(client: {
@@ -72,11 +70,10 @@ function toSafeClient(client: {
   scopes: Array<string> | null
   grantTypes: Array<string> | null
   responseTypes: Array<string> | null
-  type: string | null
+  applicationType: 'web' | 'native' | null
   createdAt: Date | null
   updatedAt: Date | null
   disabled: boolean | null
-  public: boolean | null
 }): SafeClient {
   return {
     client_id: client.clientId,
@@ -96,14 +93,13 @@ function toSafeClient(client: {
     token_endpoint_auth_method: client.tokenEndpointAuthMethod ?? undefined,
     grant_types: client.grantTypes ?? undefined,
     response_types: client.responseTypes ?? undefined,
-    type: client.type ?? undefined,
+    application_type: client.applicationType ?? undefined,
     client_id_issued_at: client.createdAt
       ? Math.floor(client.createdAt.getTime() / 1000)
       : undefined,
     created_at: client.createdAt?.toISOString(),
     updated_at: client.updatedAt?.toISOString(),
     disabled: client.disabled ?? undefined,
-    public: client.public ?? undefined,
   }
 }
 
@@ -156,11 +152,10 @@ export const Route = createFileRoute('/api/admin/clients')({
             'scopes',
             'grantTypes',
             'responseTypes',
-            'type',
+            'applicationType',
             'createdAt',
             'updatedAt',
             'disabled',
-            'public',
           ],
           sortBy: { field: 'createdAt', direction: 'desc' },
           where: all

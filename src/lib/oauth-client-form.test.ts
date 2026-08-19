@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 
 import {
+  normalizeOAuthGrantTypes,
   parseOAuthClientLines,
   toOAuthClientRequestValues,
   validateOAuthClientFormValues,
@@ -22,7 +23,7 @@ const baseValues: OAuthClientFormValues = {
   post_logout_redirect_uris: '',
   grant_types: ['authorization_code', 'refresh_token'],
   response_types: ['code'],
-  type: 'web',
+  application_type: 'web',
 }
 
 describe('OAuth client form helpers', () => {
@@ -60,5 +61,27 @@ describe('OAuth client form helpers', () => {
     ])
     expect(request.contacts).toBeUndefined()
     expect(request.post_logout_redirect_uris).toBeUndefined()
+    expect(request.application_type).toBe('web')
+  })
+
+  it('uses a public native client for HTTP loopback redirects', () => {
+    const values = {
+      ...baseValues,
+      redirect_uris: 'http://localhost:3000/callback',
+    }
+    expect(validateOAuthClientFormValues(values, 'create')).toBeNull()
+    expect(toOAuthClientRequestValues(values, 'create').application_type).toBe(
+      'native',
+    )
+  })
+
+  it('removes unsupported grant types from legacy client data', () => {
+    expect(
+      normalizeOAuthGrantTypes([
+        'authorization_code',
+        'client_credentials',
+        'refresh_token',
+      ]),
+    ).toEqual(['authorization_code', 'refresh_token'])
   })
 })

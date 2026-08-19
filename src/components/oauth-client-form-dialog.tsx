@@ -25,6 +25,7 @@ import { Checkbox } from '#/components/ui/checkbox'
 import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'
 import {
+  normalizeOAuthGrantTypes,
   parseOAuthClientLines,
   toOAuthClientRequestValues,
   validateOAuthClientFormValues,
@@ -49,7 +50,7 @@ export type SafeOAuthClient = {
   token_endpoint_auth_method?: string
   grant_types?: Array<string>
   response_types?: Array<string>
-  type?: 'web' | 'native' | 'user-agent-based'
+  application_type?: 'web' | 'native'
   client_id_issued_at?: number
   created_at?: string
   updated_at?: string
@@ -82,19 +83,17 @@ const DEFAULT_FORM_VALUES: OAuthClientFormValues = {
   post_logout_redirect_uris: '',
   grant_types: ['authorization_code', 'refresh_token'],
   response_types: ['code'],
-  type: 'web',
+  application_type: 'web',
 }
 
 const GRANT_TYPES = [
   ['authorization_code', 'Authorization Code'],
-  ['client_credentials', 'Client Credentials'],
   ['refresh_token', 'Refresh Token'],
 ] as const
 
 const TYPE_OPTIONS = [
   ['web', 'Web'],
   ['native', 'Native'],
-  ['user-agent-based', 'User Agent Based'],
 ] as const
 
 function errorMessage(error: unknown, fallback: string) {
@@ -117,9 +116,12 @@ function toFormValues(client?: SafeOAuthClient | null): OAuthClientFormValues {
     software_statement: client.software_statement ?? '',
     post_logout_redirect_uris:
       client.post_logout_redirect_uris?.join('\n') ?? '',
-    grant_types: client.grant_types ?? DEFAULT_FORM_VALUES.grant_types,
+    grant_types: normalizeOAuthGrantTypes(
+      client.grant_types ?? DEFAULT_FORM_VALUES.grant_types,
+    ),
     response_types: client.response_types ?? DEFAULT_FORM_VALUES.response_types,
-    type: client.type ?? DEFAULT_FORM_VALUES.type,
+    application_type:
+      client.application_type ?? DEFAULT_FORM_VALUES.application_type,
   }
 }
 
@@ -179,7 +181,10 @@ export function OAuthClientFormDialog({
         if (mode === 'create') {
           const result = await authClient.oauth2.register({
             ...requestValues,
-            token_endpoint_auth_method: 'client_secret_basic',
+            token_endpoint_auth_method:
+              requestValues.application_type === 'native'
+                ? 'none'
+                : 'client_secret_basic',
           })
           if (result.error) {
             throw new Error(result.error.message ?? 'Client 创建失败。')
@@ -395,19 +400,20 @@ export function OAuthClientFormDialog({
                 </FieldSet>
               )}
             </form.Field>
-            <form.Field name="type">
+            <form.Field name="application_type">
               {(field) => (
                 <Field>
-                  <FieldLabel htmlFor="oauth-client-type">
+                  <FieldLabel htmlFor="oauth-client-application-type">
                     <LabelWithRequirement>应用类型</LabelWithRequirement>
                   </FieldLabel>
                   <select
-                    id="oauth-client-type"
+                    id="oauth-client-application-type"
                     value={field.state.value}
                     onChange={(event) =>
                       field.handleChange(
                         () =>
-                          event.target.value as OAuthClientFormValues['type'],
+                          event.target
+                            .value as OAuthClientFormValues['application_type'],
                       )
                     }
                     disabled={form.state.isSubmitting}

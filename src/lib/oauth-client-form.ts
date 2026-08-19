@@ -11,9 +11,24 @@ export type OAuthClientFormValues = {
   software_version: string
   software_statement: string
   post_logout_redirect_uris: string
-  grant_types: Array<string>
+  grant_types: Array<OAuthGrantType>
   response_types: Array<string>
-  type: 'web' | 'native' | 'user-agent-based'
+  application_type: 'web' | 'native'
+}
+
+export type OAuthGrantType = 'authorization_code' | 'refresh_token'
+
+const SUPPORTED_GRANT_TYPES: ReadonlySet<OAuthGrantType> = new Set([
+  'authorization_code',
+  'refresh_token',
+])
+
+export function normalizeOAuthGrantTypes(
+  grantTypes: Array<string>,
+): Array<OAuthGrantType> {
+  return grantTypes.filter((grantType): grantType is OAuthGrantType =>
+    SUPPORTED_GRANT_TYPES.has(grantType as OAuthGrantType),
+  )
 }
 
 export function parseOAuthClientLines(value: string) {
@@ -35,6 +50,59 @@ function validateHttpUrls(values: Array<string>, label: string) {
       throw new Error(`${label}必须使用 HTTP 或 HTTPS。`)
     }
   }
+}
+
+function isLoopbackHostname(hostname: string) {
+  return (
+    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+  )
+}
+
+function resolveApplicationType(
+  applicationType: OAuthClientFormValues['application_type'],
+  redirectUris: Array<string>,
+) {
+  if (applicationType !== 'web') return applicationType
+
+  const hasHttpLoopbackRedirect = redirectUris.some((redirectUri) => {
+    const parsed = new URL(redirectUri)
+    return parsed.protocol === 'http:' && isLoopbackHostname(parsed.hostname)
+  })
+  return hasHttpLoopbackRedirect ? 'native' : applicationType
+}
+
+function validateRedirectUriPolicy(
+  redirectUris: Array<string>,
+  applicationType: OAuthClientFormValues['application_type'],
+) {
+  const effectiveApplicationType = resolveApplicationType(
+    applicationType,
+    redirectUris,
+  )
+
+  for (const redirectUri of redirectUris) {
+    const parsed = new URL(redirectUri)
+    const isLoopback = isLoopbackHostname(parsed.hostname)
+
+    if (effectiveApplicationType === 'web') {
+      if (isLoopback) {
+        return 'Web Client 不能使用 localhost 回调，请改用 Native 类型。'
+      }
+      if (parsed.protocol !== 'https:') {
+        return 'Web Client 的回调 URL 必须使用 HTTPS。'
+      }
+      continue
+    }
+
+    if (parsed.protocol === 'https:' && isLoopback) {
+      return 'Native Client 的 loopback 回调必须使用 HTTP。'
+    }
+    if (parsed.protocol === 'http:' && !isLoopback) {
+      return 'Native Client 的 HTTP 回调只能使用 localhost、127.0.0.1 或 [::1]。'
+    }
+  }
+
+  return null
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -61,6 +129,11 @@ export function validateOAuthClientFormValues(
 
   try {
     validateHttpUrls(redirectUris, 'OAuth 回调 URL')
+    const redirectPolicyError = validateRedirectUriPolicy(
+      redirectUris,
+      values.application_type,
+    )
+    if (redirectPolicyError) return redirectPolicyError
     const postLogoutRedirectUris = parseOAuthClientLines(
       values.post_logout_redirect_uris,
     )
@@ -94,12 +167,17 @@ export function toOAuthClientRequestValues(
   const postLogoutRedirectUris = parseOAuthClientLines(
     values.post_logout_redirect_uris,
   )
+  const redirectUris = parseOAuthClientLines(values.redirect_uris)
+  const applicationType = resolveApplicationType(
+    values.application_type,
+    redirectUris,
+  )
 
   return {
     client_name: values.client_name.trim(),
     client_uri: values.client_uri.trim(),
     logo_uri: optionalCreateValue(values.logo_uri),
-    redirect_uris: parseOAuthClientLines(values.redirect_uris),
+    redirect_uris: redirectUris,
     scope: optionalCreateValue(values.scope),
     contacts: contacts.length ? contacts : undefined,
     tos_uri: optionalCreateValue(values.tos_uri),
@@ -110,10 +188,8 @@ export function toOAuthClientRequestValues(
     post_logout_redirect_uris: postLogoutRedirectUris.length
       ? postLogoutRedirectUris
       : undefined,
-    grant_types: values.grant_types as Array<
-      'authorization_code' | 'client_credentials' | 'refresh_token'
-    >,
+    grant_types: normalizeOAuthGrantTypes(values.grant_types),
     response_types: values.response_types as Array<'code'>,
-    type: values.type,
+    application_type: applicationType,
   }
 }

@@ -41,13 +41,12 @@ export interface AuthDatabase {
     scopes: Array<string> | null
     grantTypes: Array<string> | null
     responseTypes: Array<string> | null
-    type: string | null
+    applicationType: 'web' | 'native' | null
     createdAt: Date | null
     updatedAt: Date | null
     disabled: boolean | null
     skipConsent: boolean | null
     enableEndSession: boolean | null
-    public: boolean | null
   }
 }
 
