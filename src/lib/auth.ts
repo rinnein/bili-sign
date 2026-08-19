@@ -35,6 +35,9 @@ export const auth = betterAuth({
   basePath: '/',
   database: { db: database, type: 'postgres' },
   appName: 'bili-sign',
+  session: {
+    expiresIn: 60 * 60 * 24 * 365,
+  },
   emailAndPassword: { enabled: false },
   advanced: {
     ipAddress: {
