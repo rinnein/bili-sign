@@ -14,6 +14,13 @@ import { captchaAwareFetch } from '#/lib/captcha-prompt'
 
 const rawBiliPlugin = biliBasicClient()
 
+export function createOAuthProviderPlugin() {
+  const plugin = oauthProviderClient()
+  const { fetchPlugins: ignoredFetchPlugins, ...withoutFetchPlugins } = plugin
+  void ignoredFetchPlugins
+  return withoutFetchPlugins
+}
+
 let deviceSessionToken: string | null = null
 
 export function setDeviceSessionToken(token: string) {
@@ -59,7 +66,7 @@ export const authClient = createAuthClient({
   },
   plugins: [
     biliPlugin,
-    oauthProviderClient(),
+    createOAuthProviderPlugin(),
     adminBootstrapClient,
     passkeyClient(),
     deviceAuthorizationClient(),
