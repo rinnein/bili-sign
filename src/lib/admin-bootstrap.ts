@@ -91,12 +91,15 @@ export const adminBootstrap = {
 
             let bootstrapUser
             try {
-              bootstrapUser = await ctx.context.internalAdapter.createUser({
-                name: '管理员',
-                email: ADMIN_BOOTSTRAP_EMAIL,
-                emailVerified: false,
-                role: `user,${PENDING_ADMIN_ROLE}`,
-              })
+              bootstrapUser = await ctx.context.internalAdapter.createUser(
+                {
+                  name: '管理员',
+                  email: ADMIN_BOOTSTRAP_EMAIL,
+                  emailVerified: false,
+                  role: `user,${PENDING_ADMIN_ROLE}`,
+                },
+                { method: 'admin' },
+              )
             } catch (error) {
               if (!isUniqueConstraintViolation(error)) throw error
               throw new APIError('CONFLICT', {

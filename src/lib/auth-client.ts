@@ -58,6 +58,17 @@ const biliPlugin = {
 const adminBootstrapClient = {
   id: 'admin-bootstrap-client',
   $InferServerPlugin: {} as typeof adminBootstrap,
+  getActions: (
+    $fetch: Parameters<NonNullable<BetterAuthClientPlugin['getActions']>>[0],
+  ) => ({
+    admin: {
+      bootstrap: (options: Record<string, never> = {}) =>
+        $fetch('/admin/bootstrap', {
+          method: 'POST',
+          body: options,
+        }),
+    },
+  }),
 } satisfies BetterAuthClientPlugin
 
 export const authClient = createAuthClient({

@@ -85,6 +85,7 @@ const columnHelper = createColumnHelper<
 const EMPTY_CLIENTS: Array<SafeOAuthClient> = []
 
 function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
+  const extra = value as Partial<SafeOAuthClient>
   return {
     client_id: value.client_id,
     user_id: value.user_id ?? undefined,
@@ -103,18 +104,18 @@ function toSafeClient(value: OAuthClient | SafeOAuthClient): SafeOAuthClient {
     token_endpoint_auth_method: value.token_endpoint_auth_method ?? undefined,
     grant_types: value.grant_types ?? undefined,
     response_types: value.response_types ?? undefined,
-    type: value.type,
+    type: extra.type,
     client_id_issued_at: value.client_id_issued_at,
     created_at:
-      typeof value.created_at === 'string'
-        ? value.created_at
+      typeof extra.created_at === 'string'
+        ? extra.created_at
         : typeof value.client_id_issued_at === 'number'
           ? new Date(value.client_id_issued_at * 1000).toISOString()
           : undefined,
     updated_at:
-      typeof value.updated_at === 'string' ? value.updated_at : undefined,
+      typeof extra.updated_at === 'string' ? extra.updated_at : undefined,
     disabled: value.disabled,
-    public: value.public,
+    public: extra.public,
   }
 }
 

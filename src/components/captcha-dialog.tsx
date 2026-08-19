@@ -14,9 +14,11 @@ import {
 } from '#/lib/captcha-prompt'
 
 const TurnstileWidget = lazy(() =>
-  import('#/components/turnstile-widget').then(({ TurnstileWidget }) => ({
-    default: TurnstileWidget,
-  })),
+  import('#/components/turnstile-widget').then(
+    ({ TurnstileWidget: Widget }) => ({
+      default: Widget,
+    }),
+  ),
 )
 
 export function CaptchaDialog() {
